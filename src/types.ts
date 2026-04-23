@@ -126,4 +126,4 @@ export interface ImportPreview {
 }
 
 export type NavItem = 'dashboard' | 'customers' | 'calendar' | 'opportunities' | 'policies'
-  | 'import' | 'assistant' | 'monitor' | 'cockpit';
+  | 'import' | 'monitor' | 'cockpit';

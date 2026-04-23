@@ -37,7 +37,6 @@ export default function Import() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Simulated import summary
   const summary = {
     totalRows: 24,
     newCustomers: 18,
@@ -49,7 +48,6 @@ export default function Import() {
     ],
   };
 
-  // Clean up interval on unmount
   useEffect(() => {
     return () => {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
@@ -105,26 +103,35 @@ export default function Import() {
     }
   }, []);
 
-  const confidenceColor = (c: number) => {
-    if (c >= 90) return 'text-emerald-600 bg-emerald-50';
-    if (c >= 80) return 'text-amber-600 bg-amber-50';
-    return 'text-red-500 bg-red-50';
+  const confidenceBadge = (c: number) => {
+    if (c >= 90) return 'badge badge-ok';
+    if (c >= 80) return 'badge badge-warn';
+    return 'badge badge-bad';
   };
 
   return (
-    <div className="p-6 max-w-[1100px] mx-auto">
+    <div className="p-6 max-w-[1100px] mx-auto anim-fade-in">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          <FileSpreadsheet size={22} className="text-violet-600" /> 智能导入
+        <h1
+          className="text-xl font-bold flex items-center gap-2"
+          style={{ color: 'var(--color-t1)' }}
+        >
+          <FileSpreadsheet size={22} style={{ color: 'var(--color-accent-bright)' }} />
+          智能导入
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p
+          className="text-sm mt-1"
+          style={{ color: 'var(--color-t3)' }}
+        >
           AI 自动识别数据格式，智能匹配 CRM 字段，一键导入客户数据
         </p>
       </div>
 
       {/* Progress steps */}
-      <div className="bg-white rounded-xl border border-slate-100 p-4 mb-6">
+      <div
+        className="card p-4 mb-6"
+      >
         <div className="flex items-center justify-between max-w-xl mx-auto">
           {[
             { key: 'idle', label: '上传数据', icon: Upload },
@@ -135,35 +142,58 @@ export default function Import() {
             const stageOrder: ImportStage[] = ['idle', 'parsing', 'preview', 'importing', 'done'];
             const currentIdx = stageOrder.indexOf(stage);
             const stepIdx = step.key === 'done' ? 4 : stageOrder.indexOf(step.key as ImportStage);
-            const isActive = currentIdx >= stepIdx;
-            const isCurrent = step.key === stage || (stage === 'importing' && step.key === 'preview');
+            const isCompleted = currentIdx > stepIdx;
+            const isActive = currentIdx === stepIdx || (stage === 'importing' && step.key === 'preview');
+            const isReached = currentIdx >= stepIdx;
             const Icon = step.icon;
 
             return (
               <div key={step.key} className="flex items-center">
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-violet-600 text-white'
-                        : 'bg-slate-100 text-slate-400'
-                    } ${isCurrent ? 'ring-2 ring-violet-200' : ''}`}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all"
+                    style={{
+                      background: isActive
+                        ? 'var(--color-accent)'
+                        : isCompleted
+                          ? 'var(--color-surface-3)'
+                          : 'var(--color-surface-1)',
+                      color: isActive
+                        ? '#fff'
+                        : isCompleted
+                          ? 'var(--color-accent-bright)'
+                          : 'var(--color-t4)',
+                      boxShadow: isActive
+                        ? '0 0 0 3px var(--color-accent-muted)'
+                        : 'none',
+                      border: isCompleted
+                        ? '1px solid var(--color-b1)'
+                        : isActive
+                          ? 'none'
+                          : '1px solid var(--color-b0)',
+                    }}
                   >
                     <Icon size={15} />
                   </div>
                   <span
-                    className={`text-[11px] mt-1.5 ${
-                      isActive ? 'text-violet-600 font-medium' : 'text-slate-400'
-                    }`}
+                    className="text-[11px] mt-1.5 font-medium"
+                    style={{
+                      color: isReached
+                        ? 'var(--color-accent-bright)'
+                        : 'var(--color-t4)',
+                    }}
                   >
                     {step.label}
                   </span>
                 </div>
                 {i < arr.length - 1 && (
                   <div
-                    className={`w-20 h-0.5 mx-3 mb-5 ${
-                      currentIdx > stepIdx ? 'bg-violet-400' : 'bg-slate-200'
-                    }`}
+                    className="w-20 h-0.5 mx-3 mb-5 rounded-full transition-colors"
+                    style={{
+                      background: currentIdx > stepIdx
+                        ? 'var(--color-accent)'
+                        : 'var(--color-b0)',
+                    }}
                   />
                 )}
               </div>
@@ -174,28 +204,38 @@ export default function Import() {
 
       {/* Stage: idle - paste/drop area */}
       {stage === 'idle' && (
-        <div className="bg-white rounded-xl border border-slate-100 p-6">
+        <div className="card p-6 anim-fade-up">
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-              dragOver
-                ? 'border-violet-400 bg-violet-50'
-                : 'border-slate-200 hover:border-violet-300'
-            }`}
+            className="rounded-xl p-8 text-center transition-all"
+            style={{
+              border: `2px dashed ${dragOver ? 'var(--color-accent-bright)' : 'var(--color-b1)'}`,
+              background: dragOver ? 'var(--color-accent-muted)' : 'transparent',
+              boxShadow: dragOver ? '0 0 30px rgba(94,106,210,0.15)' : 'none',
+            }}
           >
-            <Upload size={36} className="mx-auto text-slate-300 mb-3" />
-            <p className="text-sm font-medium text-slate-700 mb-1">
+            <Upload
+              size={36}
+              className="mx-auto mb-3"
+              style={{ color: 'var(--color-t4)' }}
+            />
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-t2)' }}>
               拖拽文件到此处，或
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="text-violet-600 hover:text-violet-700 underline ml-1"
+                className="underline ml-1 transition-colors"
+                style={{ color: 'var(--color-accent-bright)' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-accent-bright)')}
               >
                 选择文件
               </button>
             </p>
-            <p className="text-xs text-slate-400">支持 CSV、Excel、TXT 等格式</p>
+            <p className="text-xs" style={{ color: 'var(--color-t4)' }}>
+              支持 CSV、Excel、TXT 等格式
+            </p>
             <input
               ref={fileInputRef}
               type="file"
@@ -206,27 +246,50 @@ export default function Import() {
           </div>
 
           <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs text-slate-400">或者直接粘贴数据</span>
-            <div className="flex-1 h-px bg-slate-200" />
+            <div className="flex-1 h-px" style={{ background: 'var(--color-b1)' }} />
+            <span className="text-xs" style={{ color: 'var(--color-t4)' }}>或者直接粘贴数据</span>
+            <div className="flex-1 h-px" style={{ background: 'var(--color-b1)' }} />
           </div>
 
           <textarea
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
             placeholder={PLACEHOLDER}
-            className="w-full h-48 rounded-xl border border-slate-200 p-4 text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-300 resize-none font-mono"
+            className="w-full h-48 rounded-xl p-4 text-sm resize-none mono focus:outline-none transition-all"
+            style={{
+              background: 'var(--color-surface-1)',
+              border: '1px solid var(--color-b1)',
+              color: 'var(--color-t2)',
+            }}
+            onFocus={e => {
+              e.currentTarget.style.borderColor = 'var(--color-accent)';
+              e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-muted)';
+            }}
+            onBlur={e => {
+              e.currentTarget.style.borderColor = 'var(--color-b1)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
           />
 
           <div className="flex items-center justify-between mt-5">
-            <p className="text-xs text-slate-400 flex items-center gap-1.5">
-              <Sparkles size={13} className="text-violet-500" />
+            <p className="text-xs flex items-center gap-1.5" style={{ color: 'var(--color-t4)' }}>
+              <Sparkles size={13} style={{ color: 'var(--color-accent-bright)' }} />
               AI 将自动识别列名、分隔符、编码，并映射到 CRM 字段
             </p>
             <button
               onClick={startParsing}
               disabled={!pasteText.trim()}
-              className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: 'var(--color-accent)',
+                color: '#fff',
+              }}
+              onMouseEnter={e => {
+                if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-accent-hover)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'var(--color-accent)';
+              }}
             >
               <Sparkles size={15} />
               开始解析
@@ -237,17 +300,25 @@ export default function Import() {
 
       {/* Stage: parsing - AI animation */}
       {stage === 'parsing' && (
-        <div className="bg-white rounded-xl border border-slate-100 p-12 text-center">
+        <div className="card p-12 text-center anim-fade-up">
           <div className="relative inline-flex items-center justify-center w-20 h-20 mb-5">
-            <div className="absolute inset-0 rounded-full border-4 border-violet-100 animate-ping opacity-30" />
-            <div className="absolute inset-2 rounded-full border-4 border-violet-200 animate-pulse" />
-            <Sparkles size={32} className="text-violet-600 animate-pulse" />
+            <div
+              className="absolute inset-0 rounded-full animate-ping opacity-20"
+              style={{ border: '4px solid var(--color-accent-muted)' }}
+            />
+            <div
+              className="absolute inset-2 rounded-full animate-pulse"
+              style={{ border: '4px solid var(--color-accent)' }}
+            />
+            <Sparkles size={32} className="animate-pulse" style={{ color: 'var(--color-accent-bright)' }} />
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mb-2">AI 正在解析数据...</h2>
-          <p className="text-sm text-slate-500 mb-6">
+          <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--color-t1)' }}>
+            AI 正在解析数据...
+          </h2>
+          <p className="text-sm mb-6" style={{ color: 'var(--color-t3)' }}>
             正在识别数据格式、提取字段、匹配 CRM 数据结构
           </p>
-          <div className="max-w-sm mx-auto space-y-3">
+          <div className="max-w-sm mx-auto space-y-3 stagger">
             {[
               { label: '检测数据格式', delay: '0ms' },
               { label: '提取列名与样本', delay: '400ms' },
@@ -256,13 +327,24 @@ export default function Import() {
             ].map((step) => (
               <div
                 key={step.label}
-                className="flex items-center gap-3 text-left animate-fadeIn"
-                style={{ animationDelay: step.delay, animationFillMode: 'both' }}
+                className="flex items-center gap-3 text-left shimmer rounded-lg px-3 py-2"
+                style={{
+                  animationDelay: step.delay,
+                  animationFillMode: 'both',
+                }}
               >
-                <div className="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'var(--color-accent-muted)' }}
+                >
+                  <div
+                    className="w-2 h-2 rounded-full animate-pulse"
+                    style={{ background: 'var(--color-accent-bright)' }}
+                  />
                 </div>
-                <span className="text-sm text-slate-600">{step.label}</span>
+                <span className="text-sm" style={{ color: 'var(--color-t2)' }}>
+                  {step.label}
+                </span>
               </div>
             ))}
           </div>
@@ -271,50 +353,76 @@ export default function Import() {
 
       {/* Stage: preview - field mapping & summary */}
       {(stage === 'preview' || stage === 'importing') && (
-        <div className="space-y-5">
+        <div className="space-y-5 anim-fade-up">
           {/* Field mapping table */}
-          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-              <Sparkles size={16} className="text-violet-500" />
-              <h2 className="text-sm font-bold text-slate-900">AI 字段映射结果</h2>
-              <span className="text-xs text-slate-400 ml-2">
+          <div className="card overflow-hidden">
+            <div
+              className="px-5 py-4 flex items-center gap-2"
+              style={{ borderBottom: '1px solid var(--color-b0)' }}
+            >
+              <Sparkles size={16} style={{ color: 'var(--color-accent-bright)' }} />
+              <h2 className="text-sm font-bold" style={{ color: 'var(--color-t1)' }}>
+                AI 字段映射结果
+              </h2>
+              <span className="text-xs ml-2" style={{ color: 'var(--color-t4)' }}>
                 已自动匹配 {fields.length} 个字段
               </span>
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs">
-                  <th className="text-left py-3 px-5 font-medium">原始列名</th>
+                <tr style={{ background: 'var(--color-surface-2)' }}>
+                  <th
+                    className="text-left py-3 px-5 font-medium text-xs"
+                    style={{ color: 'var(--color-t3)' }}
+                  >
+                    原始列名
+                  </th>
                   <th className="text-center py-3 px-5 font-medium w-12" />
-                  <th className="text-left py-3 px-5 font-medium">CRM 字段</th>
-                  <th className="text-left py-3 px-5 font-medium">样本值</th>
-                  <th className="text-center py-3 px-5 font-medium">置信度</th>
+                  <th
+                    className="text-left py-3 px-5 font-medium text-xs"
+                    style={{ color: 'var(--color-t3)' }}
+                  >
+                    CRM 字段
+                  </th>
+                  <th
+                    className="text-left py-3 px-5 font-medium text-xs"
+                    style={{ color: 'var(--color-t3)' }}
+                  >
+                    样本值
+                  </th>
+                  <th
+                    className="text-center py-3 px-5 font-medium text-xs"
+                    style={{ color: 'var(--color-t3)' }}
+                  >
+                    置信度
+                  </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="stagger">
                 {fields.map((f, i) => (
                   <tr
                     key={f.original}
-                    className={`border-t border-slate-50 ${
-                      i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                    }`}
+                    style={{
+                      borderTop: '1px solid var(--color-b0)',
+                      background: i % 2 === 0 ? 'var(--color-surface-1)' : 'transparent',
+                    }}
                   >
-                    <td className="py-3 px-5 font-mono text-slate-700">{f.original}</td>
+                    <td className="py-3 px-5 mono" style={{ color: 'var(--color-t2)' }}>
+                      {f.original}
+                    </td>
                     <td className="py-3 px-5 text-center">
-                      <ArrowRight size={14} className="text-violet-400 mx-auto" />
+                      <ArrowRight size={14} style={{ color: 'var(--color-accent)', margin: '0 auto' }} />
                     </td>
                     <td className="py-3 px-5">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 rounded-md text-xs font-medium">
+                      <span className="badge badge-accent">
                         {CRM_FIELD_LABELS[f.mapped] || f.mapped}
                       </span>
                     </td>
-                    <td className="py-3 px-5 text-slate-500 text-xs font-mono">{f.sample}</td>
+                    <td className="py-3 px-5 text-xs mono" style={{ color: 'var(--color-t3)' }}>
+                      {f.sample}
+                    </td>
                     <td className="py-3 px-5 text-center">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${confidenceColor(
-                          f.confidence
-                        )}`}
-                      >
+                      <span className={confidenceBadge(f.confidence)}>
                         {f.confidence}%
                       </span>
                     </td>
@@ -325,37 +433,68 @@ export default function Import() {
           </div>
 
           {/* Import summary */}
-          <div className="bg-white rounded-xl border border-slate-100 p-5">
-            <h2 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-violet-500" />
+          <div className="card p-5">
+            <h2
+              className="text-sm font-bold mb-4 flex items-center gap-2"
+              style={{ color: 'var(--color-t1)' }}
+            >
+              <FileSpreadsheet size={16} style={{ color: 'var(--color-accent-bright)' }} />
               导入摘要
             </h2>
             <div className="grid grid-cols-3 gap-4 mb-5">
-              <div className="bg-slate-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-slate-900">{summary.totalRows}</div>
-                <div className="text-xs text-slate-500 mt-1">总行数</div>
+              <div
+                className="rounded-lg p-4 text-center"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-b0)' }}
+              >
+                <div className="metric" style={{ color: 'var(--color-t1)' }}>
+                  {summary.totalRows}
+                </div>
+                <div className="text-xs mt-1" style={{ color: 'var(--color-t3)' }}>总行数</div>
               </div>
-              <div className="bg-emerald-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-emerald-600">{summary.newCustomers}</div>
-                <div className="text-xs text-emerald-600 mt-1">新客户</div>
+              <div
+                className="rounded-lg p-4 text-center"
+                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}
+              >
+                <div className="metric" style={{ color: 'var(--color-ok)' }}>
+                  {summary.newCustomers}
+                </div>
+                <div className="text-xs mt-1" style={{ color: 'var(--color-ok)' }}>新客户</div>
               </div>
-              <div className="bg-amber-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-amber-600">{summary.duplicates}</div>
-                <div className="text-xs text-amber-600 mt-1">疑似重复</div>
+              <div
+                className="rounded-lg p-4 text-center"
+                style={{ background: 'rgba(236,126,0,0.08)', border: '1px solid rgba(236,126,0,0.15)' }}
+              >
+                <div className="metric" style={{ color: 'var(--color-warn)' }}>
+                  {summary.duplicates}
+                </div>
+                <div className="text-xs mt-1" style={{ color: 'var(--color-warn)' }}>疑似重复</div>
               </div>
             </div>
 
             {/* Warnings */}
             {summary.warnings.length > 0 && (
-              <div className="bg-amber-50/60 rounded-lg border border-amber-100 p-4">
-                <h3 className="text-xs font-bold text-amber-700 mb-2 flex items-center gap-1.5">
+              <div
+                className="rounded-lg p-4"
+                style={{
+                  background: 'rgba(236,126,0,0.06)',
+                  border: '1px solid rgba(236,126,0,0.12)',
+                }}
+              >
+                <h3
+                  className="text-xs font-bold mb-2 flex items-center gap-1.5"
+                  style={{ color: 'var(--color-warn)' }}
+                >
                   <AlertTriangle size={13} />
                   注意事项 ({summary.warnings.length})
                 </h3>
                 <ul className="space-y-1.5">
                   {summary.warnings.map((w, i) => (
-                    <li key={i} className="text-xs text-amber-700 flex items-start gap-2">
-                      <span className="text-amber-400 mt-0.5">•</span>
+                    <li
+                      key={i}
+                      className="text-xs flex items-start gap-2"
+                      style={{ color: 'rgba(236,126,0,0.85)' }}
+                    >
+                      <span className="mt-0.5" style={{ color: 'var(--color-warn)' }}>•</span>
                       {w}
                     </li>
                   ))}
@@ -363,22 +502,25 @@ export default function Import() {
               </div>
             )}
 
-            {/* Existing customers that might conflict */}
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <h3 className="text-xs font-medium text-slate-500 mb-2">
+            {/* Existing customers */}
+            <div
+              className="mt-4 pt-4"
+              style={{ borderTop: '1px solid var(--color-b0)' }}
+            >
+              <h3 className="text-xs font-medium mb-2" style={{ color: 'var(--color-t3)' }}>
                 现有客户库：{CUSTOMERS.length} 个客户（用于去重比对）
               </h3>
               <div className="flex flex-wrap gap-2">
                 {CUSTOMERS.slice(0, 4).map(c => (
                   <span
                     key={c.id}
-                    className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-md"
+                    className="badge badge-neutral"
                   >
                     {c.name}
                   </span>
                 ))}
                 {CUSTOMERS.length > 4 && (
-                  <span className="text-xs text-slate-400 px-2 py-1">
+                  <span className="text-xs px-2 py-1" style={{ color: 'var(--color-t4)' }}>
                     +{CUSTOMERS.length - 4} 个
                   </span>
                 )}
@@ -386,23 +528,38 @@ export default function Import() {
             </div>
           </div>
 
-          {/* Import progress bar (during importing) */}
+          {/* Import progress bar */}
           {stage === 'importing' && (
-            <div className="bg-white rounded-xl border border-slate-100 p-5">
+            <div className="card p-5 anim-fade-in">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                  <Sparkles size={15} className="text-violet-500 animate-pulse" />
+                <span
+                  className="text-sm font-medium flex items-center gap-2"
+                  style={{ color: 'var(--color-t2)' }}
+                >
+                  <Sparkles
+                    size={15}
+                    className="animate-pulse"
+                    style={{ color: 'var(--color-accent-bright)' }}
+                  />
                   正在导入...
                 </span>
-                <span className="text-sm font-bold text-violet-600">{Math.min(progress, 100)}%</span>
+                <span className="text-sm font-bold mono" style={{ color: 'var(--color-accent-bright)' }}>
+                  {Math.min(progress, 100)}%
+                </span>
               </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="w-full h-2.5 rounded-full overflow-hidden"
+                style={{ background: 'var(--color-surface-2)' }}
+              >
                 <div
-                  className="h-full bg-gradient-to-r from-violet-500 to-violet-600 rounded-full transition-all duration-200 ease-out"
-                  style={{ width: `${Math.min(progress, 100)}%` }}
+                  className="h-full rounded-full transition-all duration-200 ease-out"
+                  style={{
+                    width: `${Math.min(progress, 100)}%`,
+                    background: 'linear-gradient(90deg, var(--color-accent), var(--color-accent-bright))',
+                  }}
                 />
               </div>
-              <p className="text-xs text-slate-400 mt-2">
+              <p className="text-xs mt-2" style={{ color: 'var(--color-t4)' }}>
                 正在写入 {Math.min(Math.round((progress / 100) * summary.totalRows), summary.totalRows)} / {summary.totalRows} 条记录...
               </p>
             </div>
@@ -413,13 +570,32 @@ export default function Import() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={reset}
-                className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
+                style={{
+                  color: 'var(--color-t3)',
+                  background: 'var(--color-surface-1)',
+                  border: '1px solid var(--color-b1)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--color-surface-2)';
+                  e.currentTarget.style.borderColor = 'var(--color-b2)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'var(--color-surface-1)';
+                  e.currentTarget.style.borderColor = 'var(--color-b1)';
+                }}
               >
                 取消
               </button>
               <button
                 onClick={startImport}
-                className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
+                style={{
+                  background: 'var(--color-accent)',
+                  color: '#fff',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-accent)')}
               >
                 <CheckCircle2 size={15} />
                 确认导入 {summary.newCustomers} 个新客户
@@ -431,19 +607,39 @@ export default function Import() {
 
       {/* Stage: done - success */}
       {stage === 'done' && (
-        <div className="bg-white rounded-xl border border-slate-100 p-12 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 mb-5">
-            <CheckCircle2 size={32} className="text-emerald-500" />
+        <div className="card p-12 text-center anim-fade-up">
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5"
+            style={{ background: 'rgba(16,185,129,0.12)' }}
+          >
+            <CheckCircle2 size={32} style={{ color: 'var(--color-ok)' }} />
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mb-2">导入完成！</h2>
-          <p className="text-sm text-slate-500 mb-6">
-            成功导入 <span className="font-bold text-emerald-600">{summary.newCustomers}</span> 个新客户，
-            跳过 <span className="font-bold text-amber-600">{summary.duplicates}</span> 个重复项
+          <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--color-t1)' }}>
+            导入完成！
+          </h2>
+          <p className="text-sm mb-6" style={{ color: 'var(--color-t3)' }}>
+            成功导入{' '}
+            <span className="font-bold" style={{ color: 'var(--color-ok)' }}>
+              {summary.newCustomers}
+            </span>{' '}
+            个新客户，跳过{' '}
+            <span className="font-bold" style={{ color: 'var(--color-warn)' }}>
+              {summary.duplicates}
+            </span>{' '}
+            个重复项
           </p>
-          <div className="inline-flex items-center gap-4 bg-emerald-50 rounded-xl px-6 py-4 mb-6">
+          <div
+            className="inline-flex items-center gap-4 rounded-xl px-6 py-4 mb-6"
+            style={{
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.15)',
+            }}
+          >
             <div className="text-left">
-              <div className="text-xs text-emerald-600 mb-0.5">客户总数已更新</div>
-              <div className="text-xl font-bold text-emerald-700">
+              <div className="text-xs mb-0.5" style={{ color: 'var(--color-ok)' }}>
+                客户总数已更新
+              </div>
+              <div className="metric" style={{ color: 'var(--color-ok)' }}>
                 {CUSTOMERS.length} → {CUSTOMERS.length + summary.newCustomers}
               </div>
             </div>
@@ -451,11 +647,32 @@ export default function Import() {
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={reset}
-              className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              className="px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
+              style={{
+                color: 'var(--color-t3)',
+                background: 'var(--color-surface-1)',
+                border: '1px solid var(--color-b1)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'var(--color-surface-2)';
+                e.currentTarget.style.borderColor = 'var(--color-b2)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'var(--color-surface-1)';
+                e.currentTarget.style.borderColor = 'var(--color-b1)';
+              }}
             >
               继续导入
             </button>
-            <button className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors">
+            <button
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
+              style={{
+                background: 'var(--color-accent)',
+                color: '#fff',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-accent)')}
+            >
               查看客户列表
               <ArrowRight size={15} />
             </button>
