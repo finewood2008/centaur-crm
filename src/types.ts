@@ -127,3 +127,7 @@ export interface ImportPreview {
 
 export type NavItem = 'dashboard' | 'customers' | 'calendar' | 'opportunities' | 'policies'
   | 'import' | 'monitor' | 'cockpit';
+
+/* ── AI Native 类型 ───────────────────────────── */
+
+export type ViewMode = 'briefing' | 'chat';
