@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowLeft, Building2, Phone, MapPin, Calendar, TrendingUp, Lightbulb, Clock, FileText, Users, Activity, MessageSquare, Edit3 } from 'lucide-react';
+import { ArrowLeft, Building2, Phone, MapPin, Calendar, TrendingUp, Lightbulb, Clock, FileText, Users, Activity, Zap, AlertTriangle } from 'lucide-react';
+import { Card, Badge, Button, SectionHeader, TabGroup } from '../components/ui';
 import { CUSTOMERS, TASKS, OPPORTUNITIES, CUSTOMER_EVENTS, MONITOR_ALERTS } from '../mock';
 
 interface Props {
@@ -7,13 +8,13 @@ interface Props {
   onBack: () => void;
 }
 
-const EVENT_TYPE_STYLE: Record<string, { label: string; badge: string; dotColor: string }> = {
-  contact:     { label: '沟通', badge: 'badge badge-info',    dotColor: 'var(--color-info)' },
-  change:      { label: '变更', badge: 'badge badge-accent',  dotColor: 'var(--color-accent-bright)' },
-  risk:        { label: '风险', badge: 'badge badge-bad',     dotColor: 'var(--color-bad)' },
-  service:     { label: '服务', badge: 'badge badge-ok',      dotColor: 'var(--color-ok)' },
-  opportunity: { label: '商机', badge: 'badge badge-warn',    dotColor: 'var(--color-warn)' },
-  policy:      { label: '政策', badge: 'badge badge-neutral', dotColor: 'var(--color-t3)' },
+const EVENT_STYLE_MAP: Record<string, { label: string; variant: 'info' | 'accent' | 'bad' | 'ok' | 'warn' | 'default'; dotColor: string }> = {
+  contact:     { label: '沟通', variant: 'info',    dotColor: 'var(--color-info)' },
+  change:      { label: '变更', variant: 'accent',  dotColor: 'var(--color-accent-bright)' },
+  risk:        { label: '风险', variant: 'bad',     dotColor: 'var(--color-bad)' },
+  service:     { label: '服务', variant: 'ok',      dotColor: 'var(--color-ok)' },
+  opportunity: { label: '商机', variant: 'warn',    dotColor: 'var(--color-warn)' },
+  policy:      { label: '政策', variant: 'default', dotColor: 'var(--color-t3)' },
 };
 
 function HealthRing({ score, size = 80 }: { score: number; size?: number }) {
@@ -44,9 +45,21 @@ function HealthRing({ score, size = 80 }: { score: number; size?: number }) {
   );
 }
 
+function TaskBadge({ status, deadline }: { status: string; deadline: string }) {
+  if (status === 'overdue') return <Badge variant="bad">已逾期</Badge>;
+  if (status === 'completed') return <Badge variant="ok">已完成</Badge>;
+  return <Badge variant="warn">{deadline.slice(5)}</Badge>;
+}
+
+function AlertBadge({ severity }: { severity: string }) {
+  if (severity === 'critical') return <Badge variant="bad">严重</Badge>;
+  if (severity === 'warning') return <Badge variant="warn">警告</Badge>;
+  return <Badge variant="info">信息</Badge>;
+}
+
 export default function CustomerDetail({ customerId, onBack }: Props) {
   const c = CUSTOMERS.find(c => c.id === customerId);
-  const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'alerts'>('overview');
+  const [activeTab, setActiveTab] = useState<string>('overview');
 
   if (!c) return (
     <div className="p-6" style={{ color: 'var(--color-t3)' }}>客户不存在</div>
@@ -60,25 +73,30 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
     .sort((a, b) => new Date(b.discoveredAt).getTime() - new Date(a.discoveredAt).getTime());
   const daysSinceContact = Math.round((Date.now() - new Date(c.lastContact).getTime()) / 86400000);
 
+  const statusVariant = c.status === 'active' ? 'ok' : c.status === 'attention' ? 'warn' : 'bad';
   const statusColor = c.status === 'active' ? 'var(--color-ok)' : c.status === 'attention' ? 'var(--color-warn)' : 'var(--color-bad)';
   const statusLabel = c.status === 'active' ? '正常' : c.status === 'attention' ? '需关注' : '有风险';
-  const statusBadge = c.status === 'active' ? 'badge badge-ok' : c.status === 'attention' ? 'badge badge-warn' : 'badge badge-bad';
+
+  const tabItems = [
+    { key: 'overview', label: '概览' },
+    { key: 'timeline', label: '动态', badge: events.length },
+    { key: 'alerts', label: '预警', badge: alerts.filter(a => !a.isHandled).length || undefined },
+  ];
 
   return (
     <div className="p-6 max-w-[1100px] mx-auto anim-fade-in">
       {/* Back button */}
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={onBack}
-        className="flex items-center gap-1.5 text-[13px] mb-4 transition-colors"
-        style={{ color: 'var(--color-t3)' }}
-        onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-bright)')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-t3)')}
+        className="mb-4"
       >
         <ArrowLeft size={16} /> 返回客户列表
-      </button>
+      </Button>
 
       {/* Header card — intelligence briefing style */}
-      <div className="card p-6 mb-5">
+      <Card padding="lg" className="mb-5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div
@@ -101,16 +119,15 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
               </div>
               <div className="flex gap-1.5 mt-2">
                 {c.tags.map(tag => (
-                  <span key={tag} className="badge badge-accent" style={{ fontSize: '10px' }}>{tag}</span>
+                  <Badge key={tag} variant="accent" className="text-[10px]">{tag}</Badge>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Health ring */}
           <div className="flex flex-col items-center gap-2">
             <HealthRing score={c.healthScore} />
-            <span className={statusBadge} style={{ fontSize: '10px' }}>{statusLabel}</span>
+            <Badge variant={statusVariant} className="text-[10px]">{statusLabel}</Badge>
           </div>
         </div>
 
@@ -134,67 +151,44 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       {/* Tab navigation */}
-      <div className="tab-group mb-5 w-fit">
-        {[
-          { key: 'overview' as const, label: '概览', count: null },
-          { key: 'timeline' as const, label: '动态', count: events.length },
-          { key: 'alerts' as const, label: '预警', count: alerts.filter(a => !a.isHandled).length || null },
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`tab-item flex items-center gap-1.5 ${activeTab === tab.key ? 'active' : ''}`}
-          >
-            {tab.label}
-            {tab.count != null && (
-              <span
-                className="text-[10px] min-w-[16px] h-[16px] flex items-center justify-center rounded-full"
-                style={{
-                  background: activeTab === tab.key ? 'var(--color-accent-muted)' : 'var(--color-surface-3)',
-                  color: activeTab === tab.key ? 'var(--color-accent-bright)' : 'var(--color-t4)',
-                }}
-              >
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <TabGroup
+        items={tabItems}
+        active={activeTab}
+        onChange={setActiveTab}
+        className="mb-5"
+      />
 
       {/* ====================== OVERVIEW TAB ====================== */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-2 gap-5 stagger">
           {/* Left column: services + tasks */}
           <div className="space-y-5">
-            <div className="card p-5">
-              <h2 className="text-[14px] font-bold mb-3" style={{ color: 'var(--color-t1)' }}>当前服务</h2>
+            <Card padding="lg">
+              <SectionHeader
+                icon={<Zap size={14} />}
+                title="当前服务"
+              />
               <div className="flex flex-wrap gap-2">
                 {c.services.map(s => (
-                  <span
-                    key={s}
-                    className="text-[12px] px-3 py-1.5 rounded-lg"
-                    style={{
-                      background: 'var(--color-accent-muted)',
-                      color: 'var(--color-accent-hover)',
-                      border: '1px solid var(--color-accent-muted)',
-                    }}
-                  >
+                  <Badge key={s} variant="accent" className="text-[12px] px-3 py-1 rounded-lg">
                     {s}
-                  </span>
+                  </Badge>
                 ))}
               </div>
-            </div>
+            </Card>
 
-            <div className="card p-5">
-              <h2 className="text-[14px] font-bold mb-3" style={{ color: 'var(--color-t1)' }}>待办事项</h2>
+            <Card padding="lg">
+              <SectionHeader
+                icon={<FileText size={14} />}
+                title="待办事项"
+              />
               {tasks.length > 0 ? (
                 <div className="space-y-2.5">
                   {tasks.map(t => {
                     const dotColor = t.status === 'overdue' ? 'var(--color-bad)' : t.status === 'completed' ? 'var(--color-ok)' : 'var(--color-warn)';
-                    const badgeCls = t.status === 'overdue' ? 'badge badge-bad' : t.status === 'completed' ? 'badge badge-ok' : 'badge badge-neutral';
                     return (
                       <div
                         key={t.id}
@@ -208,9 +202,7 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
                           />
                           <span className="text-[13px]" style={{ color: 'var(--color-t2)' }}>{t.title}</span>
                         </div>
-                        <span className={badgeCls} style={{ fontSize: '10px' }}>
-                          {t.status === 'overdue' ? '已逾期' : t.status === 'completed' ? '已完成' : t.deadline.slice(5)}
-                        </span>
+                        <TaskBadge status={t.status} deadline={t.deadline} />
                       </div>
                     );
                   })}
@@ -218,15 +210,15 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
               ) : (
                 <p className="text-[12px] py-4 text-center" style={{ color: 'var(--color-t4)' }}>暂无待办</p>
               )}
-            </div>
+            </Card>
           </div>
 
           {/* Right column: AI opportunities */}
-          <div className="card p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Lightbulb size={16} style={{ color: 'var(--color-warn)' }} />
-              <h2 className="text-[14px] font-bold" style={{ color: 'var(--color-t1)' }}>AI 商机推荐</h2>
-            </div>
+          <Card padding="lg">
+            <SectionHeader
+              icon={<Lightbulb size={14} className="text-amber-400" />}
+              title="AI 商机推荐"
+            />
             {opps.length > 0 ? (
               <div className="space-y-4">
                 {opps.map(o => (
@@ -267,15 +259,7 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
                         </div>
                         <span className="text-[10px] font-medium mono" style={{ color: 'var(--color-warn)' }}>{o.confidence}%</span>
                       </div>
-                      <button
-                        className="text-[11px] px-3 py-1 rounded-md transition-colors"
-                        style={{
-                          background: 'var(--color-accent)',
-                          color: '#fff',
-                        }}
-                      >
-                        开始跟进
-                      </button>
+                      <Button variant="primary" size="sm">开始跟进</Button>
                     </div>
                   </div>
                 ))}
@@ -283,29 +267,18 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
             ) : (
               <p className="text-[12px] py-8 text-center" style={{ color: 'var(--color-t4)' }}>暂无AI推荐的商机</p>
             )}
-          </div>
+          </Card>
         </div>
       )}
 
       {/* ====================== TIMELINE TAB ====================== */}
       {activeTab === 'timeline' && (
-        <div className="card p-5 anim-fade-in">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Activity size={16} style={{ color: 'var(--color-accent-bright)' }} />
-              <h2 className="text-[14px] font-bold" style={{ color: 'var(--color-t1)' }}>客户动态</h2>
-            </div>
-            <button
-              className="text-[12px] px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-              style={{
-                border: '1px solid var(--color-b1)',
-                color: 'var(--color-t3)',
-                background: 'transparent',
-              }}
-            >
-              <Edit3 size={12} /> 添加记录
-            </button>
-          </div>
+        <Card padding="lg" className="anim-fade-in">
+          <SectionHeader
+            icon={<Activity size={14} style={{ color: 'var(--color-accent-bright)' }} />}
+            title="客户动态"
+            action={{ label: '添加记录', onClick: () => {} }}
+          />
           {events.length > 0 ? (
             <div className="relative">
               {/* Vertical line */}
@@ -315,7 +288,7 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
               />
               <div className="space-y-4">
                 {events.map(e => {
-                  const style = EVENT_TYPE_STYLE[e.type] || EVENT_TYPE_STYLE.contact;
+                  const style = EVENT_STYLE_MAP[e.type] || EVENT_STYLE_MAP.contact;
                   return (
                     <div key={e.id} className="flex gap-4 relative">
                       {/* Colored dot */}
@@ -331,7 +304,7 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
                       </div>
                       <div className="flex-1 pb-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={style.badge} style={{ fontSize: '10px' }}>{style.label}</span>
+                          <Badge variant={style.variant} className="text-[10px]">{style.label}</Badge>
                           <span className="text-[11px]" style={{ color: 'var(--color-t4)' }}>{e.timestamp}</span>
                           {e.source && <span className="text-[10px]" style={{ color: 'var(--color-t4)', opacity: 0.6 }}>· {e.source}</span>}
                         </div>
@@ -346,22 +319,20 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
           ) : (
             <p className="text-[12px] py-8 text-center" style={{ color: 'var(--color-t4)' }}>暂无动态记录</p>
           )}
-        </div>
+        </Card>
       )}
 
       {/* ====================== ALERTS TAB ====================== */}
       {activeTab === 'alerts' && (
-        <div className="card p-5 anim-fade-in">
-          <div className="flex items-center gap-2 mb-4">
-            <MessageSquare size={16} style={{ color: 'var(--color-bad)' }} />
-            <h2 className="text-[14px] font-bold" style={{ color: 'var(--color-t1)' }}>监控预警</h2>
-          </div>
+        <Card padding="lg" className="anim-fade-in">
+          <SectionHeader
+            icon={<AlertTriangle size={14} style={{ color: 'var(--color-bad)' }} />}
+            title="监控预警"
+          />
           {alerts.length > 0 ? (
             <div className="space-y-3 stagger">
               {alerts.map(a => {
                 const severityColor = a.severity === 'critical' ? 'var(--color-bad)' : a.severity === 'warning' ? 'var(--color-warn)' : 'var(--color-info)';
-                const severityBadge = a.severity === 'critical' ? 'badge badge-bad' : a.severity === 'warning' ? 'badge badge-warn' : 'badge badge-info';
-                const severityLabel = a.severity === 'critical' ? '严重' : a.severity === 'warning' ? '警告' : '信息';
                 return (
                   <div
                     key={a.id}
@@ -369,28 +340,25 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
                     style={{
                       background: 'var(--color-surface-1)',
                       borderLeft: `3px solid ${severityColor}`,
-                      border: `1px solid var(--color-b0)`,
+                      border: '1px solid var(--color-b0)',
                       borderLeftWidth: '3px',
                       borderLeftColor: severityColor,
                     }}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={severityBadge} style={{ fontSize: '10px' }}>{severityLabel}</span>
+                      <AlertBadge severity={a.severity} />
                       <span className="text-[12px] font-medium" style={{ color: 'var(--color-t1)' }}>{a.title}</span>
-                      {a.isHandled && <span className="text-[10px] ml-auto" style={{ color: 'var(--color-ok)' }}>✓ 已处理</span>}
-                      {!a.isHandled && <span className="text-[10px] ml-auto" style={{ color: 'var(--color-bad)' }}>待处理</span>}
+                      {a.isHandled
+                        ? <span className="text-[10px] ml-auto" style={{ color: 'var(--color-ok)' }}>✓ 已处理</span>
+                        : <span className="text-[10px] ml-auto" style={{ color: 'var(--color-bad)' }}>待处理</span>
+                      }
                     </div>
                     <p className="text-[12px] leading-relaxed mt-1" style={{ color: 'var(--color-t3)' }}>{a.detail}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-[10px]" style={{ color: 'var(--color-t4)' }}>{a.source}</span>
                       <span className="text-[10px]" style={{ color: 'var(--color-t4)' }}>{a.discoveredAt}</span>
                       {!a.isHandled && (
-                        <button
-                          className="text-[11px] ml-auto transition-colors"
-                          style={{ color: 'var(--color-accent-bright)' }}
-                        >
-                          标记已处理
-                        </button>
+                        <Button variant="ghost" size="sm" className="ml-auto text-[var(--color-accent)]">标记已处理</Button>
                       )}
                     </div>
                   </div>
@@ -400,7 +368,7 @@ export default function CustomerDetail({ customerId, onBack }: Props) {
           ) : (
             <p className="text-[12px] py-8 text-center" style={{ color: 'var(--color-t4)' }}>暂无预警信息</p>
           )}
-        </div>
+        </Card>
       )}
     </div>
   );

@@ -1,16 +1,14 @@
 import {
   Users, AlertTriangle, CalendarClock, Lightbulb, TrendingUp,
-  Radar, ArrowRight, Clock, Sparkles, ShieldAlert, ArrowUpRight,
-  ArrowDownRight, Activity, Zap,
+  Radar, Sparkles, ShieldAlert, ArrowUpRight, ArrowDownRight, Activity, Zap,
 } from 'lucide-react';
+import { Card, Badge, SectionHeader } from '../components/ui';
 import { DASHBOARD_STATS, TASKS, OPPORTUNITIES, POLICIES, CUSTOMERS, CUSTOMER_EVENTS } from '../mock';
 import type { NavItem } from '../types';
 
 interface Props {
   onNavigate: (tab: NavItem) => void;
 }
-
-/* ── helpers ─────────────────────────────────── */
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -22,176 +20,79 @@ function getGreeting(): string {
 
 function getSummary(): string {
   const parts: string[] = [];
-  if (DASHBOARD_STATS.overdueTasks > 0) {
-    parts.push(`${DASHBOARD_STATS.overdueTasks}项逾期待办需要立即处理`);
-  }
-  if (DASHBOARD_STATS.newOpportunities > 0) {
-    parts.push(`AI发现${DASHBOARD_STATS.newOpportunities}个新商机`);
-  }
-  if (DASHBOARD_STATS.unreadPolicies > 0) {
-    parts.push(`${DASHBOARD_STATS.unreadPolicies}条未读政策`);
-  }
+  if (DASHBOARD_STATS.overdueTasks > 0) parts.push(`${DASHBOARD_STATS.overdueTasks}项逾期待办需要立即处理`);
+  if (DASHBOARD_STATS.newOpportunities > 0) parts.push(`AI发现${DASHBOARD_STATS.newOpportunities}个新商机`);
+  if (DASHBOARD_STATS.unreadPolicies > 0) parts.push(`${DASHBOARD_STATS.unreadPolicies}条未读政策`);
   return parts.join('，') + '。';
 }
 
-/* ── KPI card ────────────────────────────────── */
-
-function KPICard({ icon: Icon, label, value, trend, trendLabel, accentColor }: {
-  icon: typeof Users;
-  label: string;
-  value: string | number;
-  trend?: 'up' | 'down' | 'neutral';
-  trendLabel?: string;
-  accentColor: string;
+function KPICard({ icon: Icon, label, value, trend, trendLabel, accent }: {
+  icon: typeof Users; label: string; value: string | number;
+  trend?: 'up' | 'down'; trendLabel?: string; accent: string;
 }) {
-  const trendColor = trend === 'up'
-    ? 'var(--color-ok)'
-    : trend === 'down'
-      ? 'var(--color-bad)'
-      : 'var(--color-t4)';
-
   const TrendIcon = trend === 'up' ? ArrowUpRight : trend === 'down' ? ArrowDownRight : Activity;
+  const trendColor = trend === 'up' ? 'text-green-400' : trend === 'down' ? 'text-red-400' : 'text-[var(--color-t4)]';
 
   return (
-    <div className="card p-5 flex flex-col gap-3 group cursor-default">
-      <div className="flex items-center justify-between">
+    <Card>
+      <div className="flex items-center justify-between mb-3">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: accentColor, opacity: 0.9 }}
+          style={{ background: accent, opacity: 0.9 }}
         >
-          <Icon size={16} style={{ color: 'var(--color-t1)' }} />
+          <Icon size={16} className="text-white" />
         </div>
         {trend && trendLabel && (
-          <div className="flex items-center gap-1" style={{ color: trendColor }}>
+          <div className={`flex items-center gap-1 ${trendColor}`}>
             <TrendIcon size={13} />
             <span className="text-[11px] font-medium">{trendLabel}</span>
           </div>
         )}
       </div>
-      <div>
-        <p className="metric" style={{ color: 'var(--color-t1)' }}>{value}</p>
-        <p className="text-[12px] mt-1.5" style={{ color: 'var(--color-t3)' }}>{label}</p>
-      </div>
-    </div>
+      <p className="mono text-[28px] font-semibold tracking-tight leading-none text-[var(--color-t1)]">
+        {value}
+      </p>
+      <p className="text-[12px] mt-1.5 text-[var(--color-t3)]">{label}</p>
+    </Card>
   );
 }
-
-/* ── section header ──────────────────────────── */
-
-function SectionHeader({ icon: Icon, title, actionLabel, onAction, iconColor }: {
-  icon: typeof Users;
-  title: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  iconColor: string;
-}) {
-  return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-2">
-        <Icon size={15} style={{ color: iconColor }} />
-        <h2 className="text-[13px] font-semibold" style={{ color: 'var(--color-t1)' }}>{title}</h2>
-      </div>
-      {actionLabel && onAction && (
-        <button
-          onClick={onAction}
-          className="flex items-center gap-0.5 text-[11px] font-medium transition-colors"
-          style={{ color: 'var(--color-accent-hover)', background: 'none', border: 'none', cursor: 'pointer' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-bright)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-accent-hover)')}
-        >
-          {actionLabel} <ArrowRight size={12} />
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* ── main dashboard ──────────────────────────── */
 
 export default function Dashboard({ onNavigate }: Props) {
-  const urgentTasks = TASKS.filter(
-    t => t.status === 'overdue' || (t.status !== 'completed' && t.priority === 'high'),
-  ).slice(0, 5);
-
+  const urgentTasks = TASKS.filter(t => t.status === 'overdue' || (t.status !== 'completed' && t.priority === 'high')).slice(0, 5);
   const newOpps = OPPORTUNITIES.filter(o => o.status === 'new').slice(0, 3);
   const unreadPolicies = POLICIES.filter(p => !p.isRead).slice(0, 2);
   const riskCustomers = CUSTOMERS.filter(c => c.status === 'risk');
+  const recentEvents = CUSTOMER_EVENTS.filter(e => e.type === 'risk' || e.type === 'change').slice(0, 3);
 
-  const recentEvents = CUSTOMER_EVENTS
-    .filter(e => e.type === 'risk' || e.type === 'change')
-    .slice(0, 3);
-
-  const dateStr = new Date().toLocaleDateString('zh-CN', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  });
+  const dateStr = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
 
   return (
     <div className="p-6 max-w-[1280px] mx-auto anim-fade-in">
-
-      {/* ── Greeting ────────────────────────── */}
+      {/* Greeting */}
       <div className="mb-8 anim-fade-up">
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-xl font-bold" style={{ color: 'var(--color-t1)' }}>
-            {getGreeting()}，李会计
-          </h1>
-          <div className="anim-breathe">
-            <Sparkles size={18} style={{ color: 'var(--color-accent-bright)' }} />
-          </div>
+          <h1 className="text-xl font-bold text-[var(--color-t1)]">{getGreeting()}，李会计</h1>
+          <Sparkles size={18} className="text-[var(--color-accent)] opacity-60" />
         </div>
-        <p className="text-[13px]" style={{ color: 'var(--color-t3)' }}>
-          {dateStr} · {getSummary()}
-        </p>
+        <p className="text-[13px] text-[var(--color-t3)]">{dateStr} · {getSummary()}</p>
       </div>
 
-      {/* ── KPI row ─────────────────────────── */}
+      {/* KPI Row */}
       <div className="grid grid-cols-4 gap-4 mb-6 stagger">
-        <KPICard
-          icon={Users}
-          label="服务客户"
-          value={DASHBOARD_STATS.totalCustomers}
-          trend="up"
-          trendLabel={`${DASHBOARD_STATS.activeCustomers}活跃`}
-          accentColor="var(--color-accent)"
-        />
-        <KPICard
-          icon={CalendarClock}
-          label="待办事项"
-          value={DASHBOARD_STATS.pendingTasks}
-          trend={DASHBOARD_STATS.overdueTasks > 0 ? 'down' : 'neutral'}
-          trendLabel={DASHBOARD_STATS.overdueTasks > 0 ? `${DASHBOARD_STATS.overdueTasks}逾期` : '按时'}
-          accentColor={DASHBOARD_STATS.overdueTasks > 0 ? 'var(--color-bad)' : 'var(--color-ok)'}
-        />
-        <KPICard
-          icon={Lightbulb}
-          label="新商机"
-          value={DASHBOARD_STATS.newOpportunities}
-          trend="up"
-          trendLabel={`¥${(DASHBOARD_STATS.totalOpportunityValue / 10000).toFixed(1)}万`}
-          accentColor="var(--color-warn)"
-        />
-        <KPICard
-          icon={TrendingUp}
-          label="平均健康度"
-          value={`${DASHBOARD_STATS.avgHealthScore}`}
-          trend={DASHBOARD_STATS.avgHealthScore >= 70 ? 'up' : 'down'}
-          trendLabel={DASHBOARD_STATS.avgHealthScore >= 70 ? '良好' : '需关注'}
-          accentColor="var(--color-ok)"
-        />
+        <KPICard icon={Users} label="服务客户" value={DASHBOARD_STATS.totalCustomers} trend="up" trendLabel={`${DASHBOARD_STATS.activeCustomers}活跃`} accent="var(--color-accent)" />
+        <KPICard icon={CalendarClock} label="待办事项" value={DASHBOARD_STATS.pendingTasks} trend={DASHBOARD_STATS.overdueTasks > 0 ? 'down' : undefined} trendLabel={DASHBOARD_STATS.overdueTasks > 0 ? `${DASHBOARD_STATS.overdueTasks}逾期` : '按时'} accent={DASHBOARD_STATS.overdueTasks > 0 ? 'var(--color-bad)' : 'var(--color-ok)'} />
+        <KPICard icon={Lightbulb} label="新商机" value={DASHBOARD_STATS.newOpportunities} trend="up" trendLabel={`¥${(DASHBOARD_STATS.totalOpportunityValue / 10000).toFixed(1)}万`} accent="var(--color-amber)" />
+        <KPICard icon={TrendingUp} label="平均健康度" value={`${DASHBOARD_STATS.avgHealthScore}`} trend={DASHBOARD_STATS.avgHealthScore >= 70 ? 'up' : 'down'} trendLabel={DASHBOARD_STATS.avgHealthScore >= 70 ? '良好' : '需关注'} accent="var(--color-ok)" />
       </div>
 
-      {/* ── 3-column grid ───────────────────── */}
+      {/* 3-column content */}
       <div className="grid grid-cols-3 gap-5 stagger">
-
-        {/* ── Left: urgent tasks ──────────── */}
-        <div className="card p-5">
+        {/* Left: Urgent tasks */}
+        <Card>
           <SectionHeader
-            icon={AlertTriangle}
+            icon={<AlertTriangle size={15} className="text-red-400" />}
             title="紧急待办"
-            actionLabel="查看全部"
-            onAction={() => onNavigate('calendar')}
-            iconColor="var(--color-bad)"
+            action={{ label: '查看全部', onClick: () => onNavigate('calendar') }}
           />
           <div className="space-y-1">
             {urgentTasks.map(t => {
@@ -199,66 +100,40 @@ export default function Dashboard({ onNavigate }: Props) {
               return (
                 <div
                   key={t.id}
-                  className="flex items-start gap-3 py-2.5 px-3 rounded-lg transition-colors"
-                  style={{
-                    borderLeft: isOverdue ? '2px solid var(--color-bad)' : '2px solid transparent',
-                    background: isOverdue ? 'rgba(226,59,74,0.06)' : 'transparent',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = isOverdue
-                      ? 'rgba(226,59,74,0.10)'
-                      : 'var(--color-surface-2)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = isOverdue
-                      ? 'rgba(226,59,74,0.06)'
-                      : 'transparent';
-                  }}
+                  className={[
+                    'flex items-start gap-3 py-2.5 px-3 rounded-lg transition-colors',
+                    isOverdue ? 'bg-red-500/5 border-l-2 border-red-500' : 'border-l-2 border-transparent',
+                  ].join(' ')}
                 >
                   <div
-                    className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-                    style={{
-                      background: isOverdue ? 'var(--color-bad)' : 'var(--color-warn)',
-                      boxShadow: isOverdue ? '0 0 6px rgba(226,59,74,0.5)' : 'none',
-                    }}
+                    className={[
+                      'w-1.5 h-1.5 rounded-full mt-1.5 shrink-0',
+                      isOverdue ? 'bg-red-400' : 'bg-amber-400',
+                    ].join(' ')}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] truncate" style={{ color: 'var(--color-t1)' }}>
-                      {t.title}
-                    </p>
-                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-t4)' }}>
-                      {t.customerName}
-                    </p>
+                    <p className="text-[13px] font-medium truncate text-[var(--color-t1)]">{t.title}</p>
+                    <p className="text-[11px] mt-0.5 text-[var(--color-t4)]">{t.customerName}</p>
                   </div>
-                  <div className="shrink-0">
-                    {isOverdue ? (
-                      <span className="badge badge-bad">已逾期</span>
-                    ) : (
-                      <span
-                        className="text-[10px] mono px-1.5 py-0.5 rounded"
-                        style={{
-                          color: 'var(--color-t3)',
-                          background: 'var(--color-surface-2)',
-                        }}
-                      >
-                        {t.deadline.slice(5)}
-                      </span>
-                    )}
-                  </div>
+                  {isOverdue ? (
+                    <Badge variant="bad">已逾期</Badge>
+                  ) : (
+                    <span className="mono text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-t3)]">
+                      {t.deadline.slice(5)}
+                    </span>
+                  )}
                 </div>
               );
             })}
           </div>
-        </div>
+        </Card>
 
-        {/* ── Center: AI opportunities ────── */}
-        <div className="card p-5">
+        {/* Center: AI opportunities */}
+        <Card>
           <SectionHeader
-            icon={Zap}
-            title="AI商机推荐"
-            actionLabel="查看全部"
-            onAction={() => onNavigate('opportunities')}
-            iconColor="var(--color-accent-bright)"
+            icon={<Zap size={15} className="text-[var(--color-accent)]" />}
+            title="AI 商机推荐"
+            action={{ label: '查看全部', onClick: () => onNavigate('opportunities') }}
           />
           <div className="space-y-3">
             {newOpps.map(o => (
@@ -266,201 +141,141 @@ export default function Dashboard({ onNavigate }: Props) {
                 key={o.id}
                 className="p-3.5 rounded-lg transition-all cursor-pointer"
                 style={{
-                  background: 'var(--color-accent-muted)',
-                  border: '1px solid rgba(94,106,210,0.2)',
+                  background: 'var(--color-accent-subtle)',
+                  border: '1px solid rgba(79,140,255,0.15)',
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'rgba(94,106,210,0.4)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(94,106,210,0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(79,140,255,0.3)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(79,140,255,0.1)';
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'rgba(94,106,210,0.2)';
+                  e.currentTarget.style.borderColor = 'rgba(79,140,255,0.15)';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[12px] font-medium" style={{ color: 'var(--color-t1)' }}>
-                    {o.customerName}
-                  </span>
-                  <span className="mono text-[12px] font-semibold" style={{ color: 'var(--color-accent-bright)' }}>
+                  <span className="text-[12px] font-medium text-[var(--color-t1)]">{o.customerName}</span>
+                  <span className="mono text-[12px] font-semibold text-[var(--color-accent)]">
                     ¥{o.estimatedValue.toLocaleString()}
                   </span>
                 </div>
-                <p className="text-[12px] font-medium" style={{ color: 'var(--color-accent-hover)' }}>
-                  {o.service}
-                </p>
-                <p className="text-[11px] mt-1 line-clamp-2" style={{ color: 'var(--color-t4)' }}>
-                  {o.reason.slice(0, 60)}…
-                </p>
+                <p className="text-[12px] font-medium text-[var(--color-accent-hover)]">{o.service}</p>
+                <p className="text-[11px] mt-1 line-clamp-2 text-[var(--color-t4)]">{o.reason.slice(0, 60)}…</p>
                 <div className="flex items-center gap-2 mt-2.5">
-                  <div
-                    className="flex-1 h-1 rounded-full overflow-hidden"
-                    style={{ background: 'rgba(255,255,255,0.06)' }}
-                  >
+                  <div className="flex-1 h-1 rounded-full overflow-hidden bg-white/5">
                     <div
                       className="h-full rounded-full"
                       style={{
                         width: `${o.confidence}%`,
-                        background: 'linear-gradient(90deg, var(--color-accent), var(--color-accent-bright))',
+                        background: 'linear-gradient(90deg, var(--color-accent), #6ba0ff)',
                       }}
                     />
                   </div>
-                  <span className="mono text-[10px]" style={{ color: 'var(--color-t3)' }}>
-                    {o.confidence}%
-                  </span>
+                  <span className="mono text-[10px] text-[var(--color-t3)]">{o.confidence}%</span>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
-        {/* ── Right: policy + churn ─────── */}
-        <div className="card p-5 flex flex-col">
-          <SectionHeader
-            icon={Radar}
-            title="政策动态"
-            actionLabel="查看全部"
-            onAction={() => onNavigate('policies')}
-            iconColor="var(--color-info)"
-          />
-          <div className="space-y-3">
-            {unreadPolicies.map(p => (
-              <div
-                key={p.id}
-                className="p-3 rounded-lg transition-colors"
-                style={{
-                  background: 'rgba(0,123,194,0.06)',
-                  border: '1px solid rgba(0,123,194,0.12)',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(0,123,194,0.10)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'rgba(0,123,194,0.06)';
-                }}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{
-                      background: p.impact === 'high' ? 'var(--color-bad)' : 'var(--color-warn)',
-                      boxShadow: p.impact === 'high' ? '0 0 6px rgba(226,59,74,0.4)' : 'none',
-                    }}
-                  />
-                  <span className="text-[12px] font-medium line-clamp-1" style={{ color: 'var(--color-t1)' }}>
-                    {p.title}
-                  </span>
-                </div>
-                <p className="text-[11px] line-clamp-2 mt-1" style={{ color: 'var(--color-t4)' }}>
-                  {p.summary.slice(0, 60)}…
-                </p>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-[10px]" style={{ color: 'var(--color-t4)' }}>{p.source}</span>
-                  <span className="badge badge-info">
-                    影响{p.affectedCount}个客户
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Churn warning ─────────────── */}
-          <div
-            className="mt-4 pt-4 flex-1"
-            style={{ borderTop: '1px solid var(--color-b0)' }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldAlert size={14} style={{ color: 'var(--color-bad)' }} />
-              <h3 className="text-[12px] font-semibold" style={{ color: 'var(--color-t1)' }}>
-                流失预警
-              </h3>
-              {riskCustomers.length > 0 && (
-                <span className="badge badge-bad">{riskCustomers.length}</span>
-              )}
-            </div>
-            <div className="space-y-1">
-              {riskCustomers.map(c => {
-                const daysSince = Math.round(
-                  (Date.now() - new Date(c.lastContact).getTime()) / 86400000,
-                );
-                return (
-                  <div
-                    key={c.id}
-                    className="flex items-center gap-2 py-2 px-2.5 rounded-lg transition-colors"
-                    style={{ cursor: 'pointer' }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(226,59,74,0.06)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'transparent';
-                    }}
-                  >
+        {/* Right: Policy + Churn */}
+        <div className="flex flex-col gap-5">
+          <Card>
+            <SectionHeader
+              icon={<Radar size={15} className="text-blue-400" />}
+              title="政策动态"
+              action={{ label: '查看全部', onClick: () => onNavigate('policies') }}
+            />
+            <div className="space-y-3">
+              {unreadPolicies.map(p => (
+                <div
+                  key={p.id}
+                  className="p-3 rounded-lg transition-colors bg-blue-500/5 border border-blue-500/10"
+                >
+                  <div className="flex items-center gap-2 mb-1">
                     <div
-                      className="w-1.5 h-1.5 rounded-full shrink-0 anim-breathe"
-                      style={{ background: 'var(--color-bad)' }}
+                      className={[
+                        'w-1.5 h-1.5 rounded-full shrink-0',
+                        p.impact === 'high' ? 'bg-red-400' : 'bg-amber-400',
+                      ].join(' ')}
                     />
-                    <span className="text-[12px] flex-1" style={{ color: 'var(--color-t2)' }}>
-                      {c.name}
-                    </span>
-                    <span className="mono text-[10px]" style={{ color: 'var(--color-bad)' }}>
-                      {daysSince}天
-                    </span>
+                    <span className="text-[12px] font-medium line-clamp-1 text-[var(--color-t1)]">{p.title}</span>
                   </div>
-                );
-              })}
+                  <p className="text-[11px] line-clamp-2 mt-1 text-[var(--color-t4)]">{p.summary.slice(0, 60)}…</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[10px] text-[var(--color-t4)]">{p.source}</span>
+                    <Badge variant="info">影响{p.affectedCount}个客户</Badge>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          </Card>
+
+          <Card className="flex-1">
+            <SectionHeader
+              icon={<ShieldAlert size={15} className="text-red-400" />}
+              title="流失预警"
+            />
+            {riskCustomers.length > 0 ? (
+              <div className="space-y-1">
+                {riskCustomers.map(c => {
+                  const daysSince = Math.round((Date.now() - new Date(c.lastContact).getTime()) / 86400000);
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-2 py-2 px-2.5 rounded-lg transition-colors hover:bg-red-500/5"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-red-400" />
+                      <span className="text-[12px] flex-1 text-[var(--color-t2)]">{c.name}</span>
+                      <span className="mono text-[10px] text-red-400">{daysSince}天</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-[12px] text-[var(--color-t4)] text-center py-4">暂无流失预警</p>
+            )}
+          </Card>
         </div>
       </div>
 
-      {/* ── Recent signals ──────────────────── */}
+      {/* Recent signals */}
       {recentEvents.length > 0 && (
-        <div className="mt-6 anim-fade-up" style={{ animationDelay: '0.2s' }}>
-          <div className="card p-5">
-            <SectionHeader
-              icon={Activity}
-              title="最新信号"
-              iconColor="var(--color-t3)"
-            />
+        <div className="mt-6 anim-fade-up">
+          <Card>
+            <SectionHeader icon={<Activity size={15} className="text-[var(--color-t3)]" />} title="最新信号" />
             <div className="grid grid-cols-3 gap-3">
               {recentEvents.map(ev => {
                 const isRisk = ev.type === 'risk';
                 return (
                   <div
                     key={ev.id}
-                    className="p-3 rounded-lg flex items-start gap-3"
-                    style={{
-                      background: isRisk ? 'rgba(226,59,74,0.05)' : 'var(--color-surface-1)',
-                      border: `1px solid ${isRisk ? 'rgba(226,59,74,0.12)' : 'var(--color-b0)'}`,
-                    }}
+                    className={[
+                      'p-3 rounded-lg flex items-start gap-3',
+                      isRisk ? 'bg-red-500/5 border border-red-500/10' : 'bg-[var(--color-surface-1)] border border-[var(--color-b0)]',
+                    ].join(' ')}
                   >
                     <div
-                      className="w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5"
-                      style={{
-                        background: isRisk ? 'rgba(226,59,74,0.15)' : 'var(--color-surface-3)',
-                      }}
+                      className={[
+                        'w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5',
+                        isRisk ? 'bg-red-500/15' : 'bg-[var(--color-surface-3)]',
+                      ].join(' ')}
                     >
                       {isRisk
-                        ? <AlertTriangle size={12} style={{ color: 'var(--color-bad)' }} />
-                        : <Activity size={12} style={{ color: 'var(--color-t3)' }} />
+                        ? <AlertTriangle size={12} className="text-red-400" />
+                        : <Activity size={12} className="text-[var(--color-t3)]" />
                       }
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-medium truncate" style={{ color: 'var(--color-t1)' }}>
-                        {ev.customerName} · {ev.title}
-                      </p>
-                      <p className="text-[11px] mt-0.5 line-clamp-1" style={{ color: 'var(--color-t4)' }}>
-                        {ev.description}
-                      </p>
-                      <p className="text-[10px] mt-1 mono" style={{ color: 'var(--color-t4)' }}>
-                        {ev.timestamp}
-                      </p>
+                      <p className="text-[12px] font-medium truncate text-[var(--color-t1)]">{ev.customerName} · {ev.title}</p>
+                      <p className="text-[11px] mt-0.5 line-clamp-1 text-[var(--color-t4)]">{ev.description}</p>
+                      <p className="mono text-[10px] mt-1 text-[var(--color-t4)]">{ev.timestamp}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </div>

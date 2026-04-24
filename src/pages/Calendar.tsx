@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, type JSX } from 'react';
 import { CalendarDays, Clock, CheckCircle2, AlertCircle, Circle } from 'lucide-react';
+import { Card, Badge, SectionHeader } from '../components/ui';
 import { TASKS as INIT_TASKS } from '../mock';
 import type { Task } from '../types';
 
@@ -21,16 +22,22 @@ const STATUS_TABS = [
 ];
 
 const STATUS_ICON: Record<string, JSX.Element> = {
-  overdue:     <AlertCircle size={14} style={{ color: 'var(--color-bad)' }} />,
-  pending:     <Circle size={14} style={{ color: 'var(--color-t4)' }} />,
-  in_progress: <Clock size={14} style={{ color: 'var(--color-info)' }} />,
-  completed:   <CheckCircle2 size={14} style={{ color: 'var(--color-ok)' }} />,
+  overdue:     <AlertCircle size={14} className="text-red-400" />,
+  pending:     <Circle size={14} className="text-[var(--color-t4)]" />,
+  in_progress: <Clock size={14} className="text-blue-400" />,
+  completed:   <CheckCircle2 size={14} className="text-green-400" />,
 };
 
-const PRIORITY_COLOR: Record<string, string> = {
-  high:   'var(--color-bad)',
-  medium: 'var(--color-warn)',
-  low:    'var(--color-t4)',
+const PRIORITY_BADGE: Record<string, { variant: 'bad' | 'warn' | 'default'; label: string }> = {
+  high:   { variant: 'bad',   label: '高优先' },
+  medium: { variant: 'warn',  label: '中优先' },
+  low:    { variant: 'default', label: '低优先' },
+};
+
+const PRIORITY_BORDER: Record<string, string> = {
+  high:   'border-l-red-500',
+  medium: 'border-l-amber-500',
+  low:    'border-l-[var(--color-t4)]',
 };
 
 export default function Calendar() {
@@ -74,31 +81,37 @@ export default function Calendar() {
   };
 
   const statCards = [
-    { label: '总待办', value: stats.total, color: 'var(--color-t1)' },
-    { label: '已逾期', value: stats.overdue, color: 'var(--color-bad)' },
-    { label: '待处理', value: stats.pending, color: 'var(--color-warn)' },
-    { label: '本周到期', value: stats.thisWeek, color: 'var(--color-info)' },
+    { label: '总待办', value: stats.total, accent: 'var(--color-accent-bright)' },
+    { label: '已逾期', value: stats.overdue, accent: 'var(--color-bad)' },
+    { label: '待处理', value: stats.pending, accent: 'var(--color-warn)' },
+    { label: '本周到期', value: stats.thisWeek, accent: 'var(--color-info)' },
   ];
 
   return (
     <div className="p-6 max-w-[1100px] mx-auto anim-fade-in">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--color-t1)' }}>
-          <CalendarDays size={22} style={{ color: 'var(--color-accent-bright)' }} /> 智能日历
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--color-t4)' }}>
+        <SectionHeader
+          icon={<CalendarDays size={18} className="text-[var(--color-accent-bright)]" />}
+          title="智能日历"
+          className="mb-1"
+        />
+        <p className="text-sm mt-1 text-[var(--color-t3)]">
           AI 自动生成的服务日历，再也不漏事
         </p>
       </div>
 
-      {/* Quick stats with .metric */}
+      {/* Quick stats */}
       <div className="grid grid-cols-4 gap-3 mb-6 stagger">
         {statCards.map(s => (
-          <div key={s.label} className="card px-4 py-3">
-            <p className="metric" style={{ color: s.color, fontSize: '22px' }}>{s.value}</p>
-            <p className="text-[11px] mt-1" style={{ color: 'var(--color-t4)' }}>{s.label}</p>
-          </div>
+          <Card key={s.label} padding="md">
+            <p className="text-[22px] font-semibold leading-none" style={{ color: s.accent }}>
+              {s.value}
+            </p>
+            <p className="text-[11px] mt-1.5 text-[var(--color-t4)]">
+              {s.label}
+            </p>
+          </Card>
         ))}
       </div>
 
@@ -133,79 +146,78 @@ export default function Calendar() {
       {/* Task list */}
       <div className="space-y-2 stagger">
         {filtered.length === 0 ? (
-          <div className="py-16 text-center card">
-            <p className="text-[14px]" style={{ color: 'var(--color-t4)' }}>暂无任务</p>
-          </div>
-        ) : filtered.map(t => {
-          const borderColor = PRIORITY_COLOR[t.priority];
-          return (
-            <div
-              key={t.id}
-              className="card p-4 flex items-center gap-4 transition-all"
-              style={{
-                borderLeft: `3px solid ${borderColor}`,
-                borderLeftWidth: '3px',
-              }}
-            >
-              {/* Status icon */}
-              <div className="shrink-0">
-                {STATUS_ICON[t.status]}
-              </div>
+          <Card padding="lg" hover={false}>
+            <p className="text-[14px] text-center text-[var(--color-t4)] py-8">暂无任务</p>
+          </Card>
+        ) : filtered.map(t => (
+          <Card
+            key={t.id}
+            padding="md"
+            className={[
+              'flex items-center gap-4',
+              PRIORITY_BORDER[t.priority],
+              'border-l-3',
+            ].join(' ')}
+            style={{ borderLeftWidth: '3px' }}
+          >
+            {/* Status icon */}
+            <div className="shrink-0">
+              {STATUS_ICON[t.status]}
+            </div>
 
-              {/* Task content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p
-                    className="text-[13px] font-medium"
-                    style={{
-                      color: t.status === 'completed' ? 'var(--color-t4)' : 'var(--color-t1)',
-                      textDecoration: t.status === 'completed' ? 'line-through' : 'none',
-                    }}
-                  >
-                    {t.title}
-                  </p>
-                  <span className="badge badge-neutral" style={{ fontSize: '10px' }}>{TYPE_LABEL[t.type]}</span>
-                </div>
-                <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-t4)' }}>
-                  {t.customerName} · {t.assignedTo}
-                </p>
-              </div>
-
-              {/* Deadline + priority */}
-              <div className="text-right shrink-0">
+            {/* Task content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
                 <p
-                  className="text-[12px] font-medium"
+                  className="text-[13px] font-medium truncate"
                   style={{
-                    color: t.status === 'overdue' ? 'var(--color-bad)' : t.status === 'completed' ? 'var(--color-t4)' : 'var(--color-t2)',
+                    color: t.status === 'completed' ? 'var(--color-t4)' : 'var(--color-t1)',
+                    textDecoration: t.status === 'completed' ? 'line-through' : 'none',
                   }}
                 >
-                  {t.status === 'overdue' ? '⚠ 已逾期' : t.deadline}
+                  {t.title}
                 </p>
-                <p
-                  className="text-[10px] mt-0.5"
-                  style={{ color: PRIORITY_COLOR[t.priority] }}
-                >
-                  {t.priority === 'high' ? '高优先' : t.priority === 'medium' ? '中优先' : '低优先'}
-                </p>
+                <Badge variant="default">{TYPE_LABEL[t.type]}</Badge>
               </div>
+              <p className="text-[11px] mt-0.5 text-[var(--color-t4)]">
+                {t.customerName} · {t.assignedTo}
+              </p>
+            </div>
 
-              {/* Action button */}
-              <button
-                onClick={() => advanceStatus(t.id)}
-                disabled={t.status === 'completed'}
-                className="text-[11px] px-3 py-1.5 rounded-md transition-all shrink-0"
+            {/* Deadline + priority */}
+            <div className="text-right shrink-0">
+              <p
+                className="text-[12px] font-medium"
                 style={{
-                  background: t.status === 'completed' ? 'var(--color-surface-2)' : 'var(--color-accent-muted)',
-                  color: t.status === 'completed' ? 'var(--color-t4)' : 'var(--color-accent-bright)',
-                  cursor: t.status === 'completed' ? 'default' : 'pointer',
-                  border: `1px solid ${t.status === 'completed' ? 'var(--color-b0)' : 'var(--color-accent-muted)'}`,
+                  color: t.status === 'overdue' ? 'var(--color-bad)' : t.status === 'completed' ? 'var(--color-t4)' : 'var(--color-t2)',
                 }}
               >
-                {t.status === 'completed' ? '已完成' : t.status === 'in_progress' ? '完成' : '开始'}
-              </button>
+                {t.status === 'overdue' ? '⚠ 已逾期' : t.deadline}
+              </p>
+              <Badge
+                variant={PRIORITY_BADGE[t.priority].variant}
+                className="mt-0.5"
+              >
+                {PRIORITY_BADGE[t.priority].label}
+              </Badge>
             </div>
-          );
-        })}
+
+            {/* Action button */}
+            <button
+              onClick={() => advanceStatus(t.id)}
+              disabled={t.status === 'completed'}
+              className={[
+                'text-[11px] px-3 py-1.5 rounded-md transition-all shrink-0 font-medium',
+                'focus:outline-none',
+                t.status === 'completed'
+                  ? 'bg-[var(--color-surface-2)] text-[var(--color-t4)] cursor-default border border-[var(--color-b0)]'
+                  : 'bg-[var(--color-accent-muted)] text-[var(--color-accent-bright)] border border-[var(--color-accent-muted)] hover:bg-[var(--color-accent)] hover:text-white',
+              ].join(' ')}
+            >
+              {t.status === 'completed' ? '已完成' : t.status === 'in_progress' ? '完成' : '开始'}
+            </button>
+          </Card>
+        ))}
       </div>
     </div>
   );

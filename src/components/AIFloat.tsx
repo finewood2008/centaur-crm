@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles, Copy, Check } from 'lucide-react';
-import { CUSTOMERS } from '../mock';
-import type { Customer } from '../types';
+import { Button } from './ui';
 
 interface Message {
   id: string;
@@ -130,28 +129,32 @@ export default function AIFloat({ open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end pr-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-      <div className="w-[480px] h-[85vh] rounded-2xl flex flex-col overflow-hidden anim-fade-in"
-        style={{ background: 'var(--color-panel)', border: '1px solid var(--color-b1)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
-
+    <div className="fixed inset-0 z-50 flex items-center justify-end pr-4 bg-black/60 backdrop-blur-sm">
+      <div
+        className="w-[480px] h-[85vh] rounded-2xl flex flex-col overflow-hidden anim-fade-in"
+        style={{
+          background: 'var(--color-panel)',
+          border: '1px solid var(--color-b1)',
+          boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--color-b0)' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-b0)]">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #5e6ad2, #7170ff)' }}>
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, var(--color-accent), #6ba0ff)` }}
+            >
               <Sparkles size={14} className="text-white" />
             </div>
             <div>
-              <h2 className="text-[14px] font-semibold" style={{ color: 'var(--color-t1)' }}>AI 助手</h2>
-              <p className="text-[10px]" style={{ color: 'var(--color-t4)' }}>基于全量客户数据实时分析</p>
+              <h2 className="text-[14px] font-semibold text-[var(--color-t1)]">AI 助手</h2>
+              <p className="text-[10px] text-[var(--color-t4)]">基于全量客户数据实时分析</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-            style={{ background: 'var(--color-surface-2)', color: 'var(--color-t3)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface-3)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-surface-2)'; }}>
+          <Button icon onClick={onClose} variant="ghost">
             <X size={14} />
-          </button>
+          </Button>
         </div>
 
         {/* Messages */}
@@ -159,20 +162,22 @@ export default function AIFloat({ open, onClose }: Props) {
           {messages.map(m => (
             <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className="max-w-[90%] group">
-                <div className="rounded-xl px-4 py-3 text-[13px] leading-relaxed" style={{
-                  background: m.role === 'user' ? 'var(--color-accent)' : 'var(--color-surface-2)',
-                  color: m.role === 'user' ? 'white' : 'var(--color-t2)',
-                  border: m.role === 'user' ? 'none' : '1px solid var(--color-b0)',
-                }}>
-                  <div className="whitespace-pre-wrap">{m.content}</div>
+                <div
+                  className="rounded-xl px-4 py-3 text-[13px] leading-relaxed whitespace-pre-wrap"
+                  style={{
+                    background: m.role === 'user' ? 'var(--color-accent)' : 'var(--color-surface-2)',
+                    color: m.role === 'user' ? 'white' : 'var(--color-t2)',
+                    border: m.role === 'user' ? 'none' : '1px solid var(--color-b0)',
+                  }}
+                >
+                  {m.content}
                 </div>
                 <div className="flex items-center gap-2 mt-1 px-1">
-                  <span className="text-[10px]" style={{ color: 'var(--color-t4)' }}>{m.ts}</span>
+                  <span className="text-[10px] text-[var(--color-t4)]">{m.ts}</span>
                   {m.role === 'assistant' && (
                     <button
                       onClick={() => copy(m.id, m.content)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px]"
-                      style={{ color: 'var(--color-t4)' }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] text-[var(--color-t4)]"
                     >
                       {copiedId === m.id ? <><Check size={10} /> 已复制</> : <><Copy size={10} /> 复制</>}
                     </button>
@@ -183,11 +188,13 @@ export default function AIFloat({ open, onClose }: Props) {
           ))}
           {typing && (
             <div className="flex justify-start">
-              <div className="rounded-xl px-4 py-3 flex items-center gap-1.5"
-                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-b0)' }}>
-                <div className="w-1.5 h-1.5 rounded-full anim-breathe" style={{ background: 'var(--color-accent-bright)', animationDelay: '0s' }} />
-                <div className="w-1.5 h-1.5 rounded-full anim-breathe" style={{ background: 'var(--color-accent-bright)', animationDelay: '0.2s' }} />
-                <div className="w-1.5 h-1.5 rounded-full anim-breathe" style={{ background: 'var(--color-accent-bright)', animationDelay: '0.4s' }} />
+              <div
+                className="rounded-xl px-4 py-3 flex items-center gap-1.5"
+                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-b0)' }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" style={{ animationDelay: '0.2s' }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" style={{ animationDelay: '0.4s' }} />
               </div>
             </div>
           )}
@@ -195,15 +202,12 @@ export default function AIFloat({ open, onClose }: Props) {
         </div>
 
         {/* Quick actions */}
-        <div className="px-5 py-2 flex flex-wrap gap-1.5" style={{ borderTop: '1px solid var(--color-b0)' }}>
+        <div className="px-5 py-2 flex flex-wrap gap-1.5 border-t border-[var(--color-b0)]">
           {QUICK_ACTIONS.map((q, i) => (
             <button
               key={i}
               onClick={() => send(q)}
-              className="text-[11px] px-3 py-1.5 rounded-full transition-all"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-t3)', border: '1px solid var(--color-b0)' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-accent-muted)'; e.currentTarget.style.color = 'var(--color-accent-hover)'; e.currentTarget.style.borderColor = 'rgba(94,106,210,0.3)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-surface-2)'; e.currentTarget.style.color = 'var(--color-t3)'; e.currentTarget.style.borderColor = 'var(--color-b0)'; }}
+              className="text-[11px] px-3 py-1.5 rounded-full transition-all hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 text-[var(--color-t3)] border border-[var(--color-b0)] bg-[var(--color-surface-2)]"
             >
               {q.length > 20 ? q.slice(0, 20) + '…' : q}
             </button>
@@ -211,26 +215,32 @@ export default function AIFloat({ open, onClose }: Props) {
         </div>
 
         {/* Input */}
-        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-b0)' }}>
-          <div className="flex items-end gap-2 rounded-xl px-3 py-2" style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-b1)' }}>
+        <div className="px-4 py-3 border-t border-[var(--color-b0)]">
+          <div
+            className="flex items-end gap-2 rounded-xl px-3 py-2"
+            style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-b1)' }}
+          >
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
               placeholder="问我任何关于客户的问题..."
               rows={1}
-              className="flex-1 bg-transparent text-[13px] resize-none outline-none placeholder:text-[var(--color-t4)]"
-              style={{ color: 'var(--color-t1)', maxHeight: '100px' }}
+              className="flex-1 bg-transparent text-[13px] resize-none outline-none text-[var(--color-t1)] placeholder:text-[var(--color-t4)]"
+              style={{ maxHeight: '100px' }}
             />
             <button
               onClick={() => send(input)}
               className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors"
-              style={{ background: input.trim() ? 'var(--color-accent)' : 'var(--color-surface-3)', color: input.trim() ? 'white' : 'var(--color-t4)' }}
+              style={{
+                background: input.trim() ? 'var(--color-accent)' : 'var(--color-surface-3)',
+                color: input.trim() ? 'white' : 'var(--color-t4)',
+              }}
             >
               <Send size={13} />
             </button>
           </div>
-          <p className="text-[10px] mt-1.5 px-1" style={{ color: 'var(--color-t4)' }}>
+          <p className="text-[10px] mt-1.5 px-1 text-[var(--color-t4)]">
             Enter 发送 · Shift+Enter 换行 · ⌘K 打开/关闭
           </p>
         </div>

@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, User, Bot, Sparkles, Copy, Users } from 'lucide-react';
+import { Card, Badge, Button, Input } from '../components/ui';
 import { CUSTOMERS } from '../mock';
-import type { ChatMessage } from '../types';
+import type { ChatMessage, Customer } from '../types';
 
 /* ── AI 回复模板 ─────────────────────────────── */
-function generateAIResponse(action: string, customer: typeof CUSTOMERS[0] | null): string {
+function generateAIResponse(action: string, customer: Customer | null): string {
   if (!customer) return '请先在左侧选择一位客户，我才能为您生成针对性的沟通内容。';
 
   const c = customer;
@@ -166,6 +167,25 @@ function nextId() {
   return `msg-${++msgIdCounter}-${Date.now()}`;
 }
 
+/* ── 辅助函数 ─────────────────────────────────── */
+function statusVariant(status: Customer['status']): 'ok' | 'warn' | 'bad' {
+  if (status === 'active') return 'ok';
+  if (status === 'attention') return 'warn';
+  return 'bad';
+}
+
+function statusLabel(status: Customer['status']): string {
+  if (status === 'active') return '正常';
+  if (status === 'attention') return '需关注';
+  return '风险';
+}
+
+function scoreColor(score: number): string {
+  if (score >= 80) return 'var(--color-ok)';
+  if (score >= 60) return 'var(--color-warn)';
+  return 'var(--color-bad)';
+}
+
 /* ── 主组件 ───────────────────────────────────── */
 export default function Assistant() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -181,9 +201,15 @@ export default function Assistant() {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selectedCustomer = CUSTOMERS.find(c => c.id === selectedCustomerId) || null;
+
+  const filteredCustomers = CUSTOMERS.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.contact.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -206,7 +232,6 @@ export default function Assistant() {
     setInputText('');
     setIsTyping(true);
 
-    // Simulate AI typing delay
     setTimeout(() => {
       const aiContent = generateAIResponse(text, selectedCustomer);
       const aiMsg: ChatMessage = {
@@ -238,183 +263,249 @@ export default function Assistant() {
   }
 
   return (
-    <div className="p-6 max-w-[1200px] mx-auto h-[calc(100vh-2rem)]">
+    <div className="anim-fade-in p-6 max-w-[1200px] mx-auto h-[calc(100vh-2rem)]">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          <MessageSquare size={22} className="text-blue-500" /> AI 沟通助手
-        </h1>
-        <span className="text-sm text-slate-500 ml-2">智能生成客户沟通话术、通知、邮件</span>
+        <div className="flex items-center gap-2">
+          <MessageSquare size={18} className="text-[var(--color-accent)]" />
+          <h1 className="text-lg font-semibold text-[var(--color-t1)]">AI 沟通助手</h1>
+        </div>
+        <span className="text-sm text-[var(--color-t3)] ml-1">智能生成客户沟通话术、通知、邮件</span>
       </div>
 
       <div className="flex gap-4 h-[calc(100%-3.5rem)]">
         {/* ── Left Sidebar: Customer Selector ── */}
-        <div className="w-[280px] shrink-0 flex flex-col gap-4">
-          {/* Customer dropdown card */}
-          <div className="bg-white rounded-xl border border-slate-100 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Users size={15} className="text-slate-500" />
-              <span className="text-[13px] font-medium text-slate-700">选择客户</span>
+        <div className="w-[280px] shrink-0 flex flex-col gap-4 overflow-hidden">
+          {/* Customer search & list */}
+          <Card padding="sm" className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 px-1">
+              <Users size={14} className="text-[var(--color-t3)]" />
+              <span className="text-[13px] font-medium text-[var(--color-t1)]">客户列表</span>
+              <span className="text-[11px] text-[var(--color-t4)] ml-auto">{CUSTOMERS.length}</span>
             </div>
-            <select
-              value={selectedCustomerId}
-              onChange={e => setSelectedCustomerId(e.target.value)}
-              className="w-full px-3 py-2 text-[13px] rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
-            >
-              <option value="">— 请选择客户 —</option>
-              {CUSTOMERS.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <Input
+              search
+              placeholder="搜索客户..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            <div className="flex flex-col gap-1 max-h-[400px] overflow-y-auto -mx-1 px-1">
+              {filteredCustomers.map(c => {
+                const isSelected = c.id === selectedCustomerId;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedCustomerId(c.id)}
+                    className={[
+                      'w-full text-left rounded-lg px-3 py-2.5 transition-all duration-150',
+                      'flex items-center gap-2.5',
+                      isSelected
+                        ? 'bg-[var(--color-accent-muted)] border border-[var(--color-accent)]/30'
+                        : 'bg-transparent border border-transparent hover:bg-[var(--color-surface-2)]',
+                    ].join(' ')}
+                  >
+                    <div
+                      className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[11px] font-bold"
+                      style={{
+                        background: isSelected ? 'var(--color-accent)' : 'var(--color-surface-3)',
+                        color: isSelected ? '#fff' : 'var(--color-t2)',
+                      }}
+                    >
+                      {c.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-medium text-[var(--color-t1)] truncate">
+                        {c.name}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-[var(--color-t4)] truncate">{c.contact}</span>
+                        <Badge variant={statusVariant(c.status)}>{statusLabel(c.status)}</Badge>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {filteredCustomers.length === 0 && (
+                <div className="text-center py-6 text-[12px] text-[var(--color-t4)]">
+                  未找到匹配的客户
+                </div>
+              )}
+            </div>
+          </Card>
 
           {/* Customer info card */}
-          {selectedCustomer && (
-            <div className="bg-white rounded-xl border border-slate-100 p-4 flex-1 overflow-auto">
-              <div className="flex items-center gap-2 mb-3">
-                <User size={15} className="text-blue-500" />
-                <span className="text-[13px] font-bold text-slate-800">{selectedCustomer.name}</span>
+          {selectedCustomer ? (
+            <Card padding="sm" className="flex-1 overflow-auto">
+              <div className="flex items-center gap-2.5 mb-3 px-1">
+                <div
+                  className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-[12px] font-bold"
+                  style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent)' }}
+                >
+                  {selectedCustomer.name.charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold text-[var(--color-t1)] truncate">
+                    {selectedCustomer.name}
+                  </div>
+                  <div className="text-[10px] text-[var(--color-t4)]">
+                    {selectedCustomer.industry} · {selectedCustomer.taxpayerType}
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2.5 text-[12px] text-slate-600">
+              <div className="space-y-2.5 text-[12px] text-[var(--color-t2)] px-1">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">联系人</span>
+                  <span className="text-[var(--color-t4)]">联系人</span>
                   <span>{selectedCustomer.contact}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">电话</span>
+                  <span className="text-[var(--color-t4)]">电话</span>
                   <span>{selectedCustomer.phone}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">行业</span>
-                  <span>{selectedCustomer.industry}</span>
+                  <span className="text-[var(--color-t4)]">负责人</span>
+                  <span>{selectedCustomer.assignedTo}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">纳税类型</span>
-                  <span>{selectedCustomer.taxpayerType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">月均营收</span>
+                  <span className="text-[var(--color-t4)]">月均营收</span>
                   <span>{selectedCustomer.monthlyRevenue}万</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">员工人数</span>
+                  <span className="text-[var(--color-t4)]">员工</span>
                   <span>{selectedCustomer.employeeCount}人</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">健康评分</span>
-                  <span className={`font-medium ${
-                    selectedCustomer.healthScore >= 80 ? 'text-emerald-600' :
-                    selectedCustomer.healthScore >= 60 ? 'text-amber-600' : 'text-red-500'
-                  }`}>{selectedCustomer.healthScore}/100</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">状态</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                    selectedCustomer.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
-                    selectedCustomer.status === 'attention' ? 'bg-amber-50 text-amber-600' :
-                    'bg-red-50 text-red-600'
-                  }`}>
-                    {selectedCustomer.status === 'active' ? '正常' :
-                     selectedCustomer.status === 'attention' ? '需关注' : '风险'}
+                  <span className="text-[var(--color-t4)]">健康评分</span>
+                  <span className="font-medium" style={{ color: scoreColor(selectedCustomer.healthScore) }}>
+                    {selectedCustomer.healthScore}/100
                   </span>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[var(--color-t4)]">状态</span>
+                  <Badge variant={statusVariant(selectedCustomer.status)}>
+                    {statusLabel(selectedCustomer.status)}
+                  </Badge>
+                </div>
                 <div>
-                  <span className="text-slate-400 block mb-1">当前服务</span>
+                  <span className="text-[var(--color-t4)] block mb-1">服务</span>
                   <div className="flex flex-wrap gap-1">
                     {selectedCustomer.services.map(s => (
-                      <span key={s} className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">{s}</span>
+                      <Badge key={s} variant="accent">{s}</Badge>
                     ))}
                   </div>
                 </div>
                 {selectedCustomer.tags.length > 0 && (
                   <div>
-                    <span className="text-slate-400 block mb-1">标签</span>
+                    <span className="text-[var(--color-t4)] block mb-1">标签</span>
                     <div className="flex flex-wrap gap-1">
                       {selectedCustomer.tags.map(t => (
-                        <span key={t} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">{t}</span>
+                        <Badge key={t} variant="default">{t}</Badge>
                       ))}
                     </div>
                   </div>
                 )}
+                <div className="flex justify-between">
+                  <span className="text-[var(--color-t4)]">最后联系</span>
+                  <span>{selectedCustomer.lastContact}</span>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Placeholder when no customer selected */}
-          {!selectedCustomer && (
-            <div className="bg-white rounded-xl border border-slate-100 p-4 flex-1 flex items-center justify-center">
-              <div className="text-center text-slate-400">
-                <Users size={32} className="mx-auto mb-2 opacity-40" />
-                <p className="text-[12px]">选择客户后显示详细信息</p>
+            </Card>
+          ) : (
+            <Card padding="sm" className="flex-1 flex items-center justify-center">
+              <div className="text-center px-4">
+                <Users size={28} className="mx-auto mb-2" style={{ color: 'var(--color-t4)' }} />
+                <p className="text-[12px] text-[var(--color-t4)]">选择左侧客户<br/>查看详细信息</p>
               </div>
-            </div>
+            </Card>
           )}
         </div>
 
         {/* ── Right Side: Chat Area ── */}
-        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-100 overflow-hidden">
+        <div
+          className="flex-1 flex flex-col rounded-xl overflow-hidden"
+          style={{
+            background: 'var(--color-panel)',
+            border: '1px solid var(--color-b0)',
+          }}
+        >
           {/* Quick actions bar */}
-          <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-blue-50/40 to-indigo-50/30">
+          <div
+            className="px-4 py-3 border-b"
+            style={{ borderColor: 'var(--color-b0)' }}
+          >
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles size={13} className="text-amber-500" />
-              <span className="text-[11px] text-slate-500">快捷操作</span>
+              <Sparkles size={13} className="text-[var(--color-amber)]" />
+              <span className="text-[11px] text-[var(--color-t3)]">快捷操作</span>
             </div>
             <div className="flex gap-2 flex-wrap">
               {QUICK_ACTIONS.map(a => (
-                <button
+                <Button
                   key={a.label}
+                  variant="secondary"
+                  size="sm"
                   onClick={() => handleSend(a.label)}
                   disabled={isTyping}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] bg-white border border-slate-200 rounded-lg text-slate-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span>{a.icon}</span>
                   {a.label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
           {/* Messages area */}
-          <div className="flex-1 overflow-auto px-4 py-4 space-y-4">
+          <div
+            className="flex-1 overflow-auto px-4 py-4 space-y-4"
+            style={{ background: 'var(--color-base)' }}
+          >
             {messages.map(msg => (
               <div
                 key={msg.id}
-                className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+                className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} anim-fade-up`}
               >
                 {/* Avatar */}
-                <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600'
-                    : 'bg-gradient-to-br from-indigo-500 to-purple-500'
-                }`}>
+                <div
+                  className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center"
+                  style={{
+                    background: msg.role === 'user'
+                      ? 'var(--color-accent)'
+                      : 'linear-gradient(135deg, var(--color-accent) 0%, #7c5dd8 100%)',
+                  }}
+                >
                   {msg.role === 'user'
-                    ? <User size={16} className="text-white" />
-                    : <Bot size={16} className="text-white" />}
+                    ? <User size={15} className="text-white" />
+                    : <Bot size={15} className="text-white" />}
                 </div>
 
                 {/* Bubble */}
                 <div className={`max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`rounded-xl px-4 py-3 text-[13px] leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-tr-sm'
-                      : 'bg-slate-50 text-slate-700 border border-slate-100 rounded-tl-sm'
-                  }`}>
-                    <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+                  <div
+                    className="rounded-xl px-4 py-3 text-[13px] leading-relaxed whitespace-pre-wrap font-sans"
+                    style={{
+                      background: msg.role === 'user'
+                        ? 'var(--color-accent)'
+                        : 'var(--color-surface-2)',
+                      color: msg.role === 'user' ? '#fff' : 'var(--color-t1)',
+                      border: msg.role === 'user' ? 'none' : '1px solid var(--color-b0)',
+                      borderRadius: msg.role === 'user'
+                        ? '16px 16px 4px 16px'
+                        : '16px 16px 16px 4px',
+                    }}
+                  >
+                    {msg.content}
                   </div>
                   <div className={`flex items-center gap-2 mt-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                    <span className="text-[10px] text-slate-300">
+                    <span className="text-[10px]" style={{ color: 'var(--color-t4)' }}>
                       {new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {msg.role === 'assistant' && msg.id !== 'welcome' && (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleCopy(msg.id, msg.content)}
-                        className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-blue-500 transition-colors"
                       >
                         <Copy size={11} />
                         {copiedId === msg.id ? '已复制' : '复制'}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -423,16 +514,28 @@ export default function Assistant() {
 
             {/* Typing indicator */}
             {isTyping && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-500">
-                  <Bot size={16} className="text-white" />
+              <div className="flex gap-3 anim-fade-up">
+                <div
+                  className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--color-accent) 0%, #7c5dd8 100%)',
+                  }}
+                >
+                  <Bot size={15} className="text-white" />
                 </div>
-                <div className="bg-slate-50 border border-slate-100 rounded-xl rounded-tl-sm px-4 py-3">
+                <div
+                  className="rounded-xl px-4 py-3"
+                  style={{
+                    background: 'var(--color-surface-2)',
+                    border: '1px solid var(--color-b0)',
+                    borderRadius: '16px 16px 16px 4px',
+                  }}
+                >
                   <div className="flex gap-1.5 items-center">
-                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    <span className="text-[11px] text-slate-400 ml-2">AI正在生成...</span>
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--color-t4)', animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--color-t4)', animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--color-t4)', animationDelay: '300ms' }} />
+                    <span className="text-[11px] ml-2" style={{ color: 'var(--color-t4)' }}>AI 正在生成...</span>
                   </div>
                 </div>
               </div>
@@ -441,26 +544,36 @@ export default function Assistant() {
           </div>
 
           {/* Input area */}
-          <div className="px-4 py-3 border-t border-slate-100 bg-white">
+          <div
+            className="px-4 py-3 border-t"
+            style={{ borderColor: 'var(--color-b0)' }}
+          >
             <div className="flex gap-2 items-end">
               <textarea
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
+                onKeyDown={handleKeyDown as any}
                 placeholder={selectedCustomer ? `为 ${selectedCustomer.name} 生成沟通内容...` : '请先选择客户，再输入需求...'}
                 rows={1}
-                className="flex-1 resize-none px-4 py-2.5 text-[13px] rounded-xl border border-slate-200 bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 max-h-[120px]"
-                style={{ minHeight: '42px' }}
+                className="flex-1 resize-none px-4 py-2.5 text-[13px] rounded-xl outline-none max-h-[120px]"
+                style={{
+                  background: 'var(--color-surface-2)',
+                  border: '1px solid var(--color-b0)',
+                  color: 'var(--color-t1)',
+                  minHeight: '42px',
+                }}
               />
-              <button
+              <Button
+                variant="primary"
+                size="md"
+                icon
                 onClick={() => handleSend(inputText)}
                 disabled={!inputText.trim() || isTyping}
-                className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Send size={16} />
-              </button>
+                <Send size={15} />
+              </Button>
             </div>
-            <p className="text-[10px] text-slate-300 mt-1.5 text-center">
+            <p className="text-[10px] mt-1.5 text-center" style={{ color: 'var(--color-t4)' }}>
               按 Enter 发送 · Shift+Enter 换行 · AI 生成内容仅供参考，请根据实际情况调整
             </p>
           </div>

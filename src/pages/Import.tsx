@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react';
 import { SAMPLE_IMPORT_FIELDS, CUSTOMERS } from '../mock';
 import type { ImportField } from '../types';
+import { Card, Badge, Button, SectionHeader } from '../components/ui';
 
 type ImportStage = 'idle' | 'parsing' | 'preview' | 'importing' | 'done';
 
@@ -103,44 +104,37 @@ export default function Import() {
     }
   }, []);
 
-  const confidenceBadge = (c: number) => {
-    if (c >= 90) return 'badge badge-ok';
-    if (c >= 80) return 'badge badge-warn';
-    return 'badge badge-bad';
+  const confidenceBadgeVariant = (c: number): 'ok' | 'warn' | 'bad' => {
+    if (c >= 90) return 'ok';
+    if (c >= 80) return 'warn';
+    return 'bad';
   };
+
+  const stageOrder: ImportStage[] = ['idle', 'parsing', 'preview', 'importing', 'done'];
+  const currentIdx = stageOrder.indexOf(stage);
+
+  const steps = [
+    { key: 'idle', label: '上传数据', icon: Upload },
+    { key: 'parsing', label: 'AI 解析', icon: Sparkles },
+    { key: 'preview', label: '确认映射', icon: CheckCircle2 },
+    { key: 'done', label: '导入完成', icon: CheckCircle2 },
+  ];
 
   return (
     <div className="p-6 max-w-[1100px] mx-auto anim-fade-in">
       {/* Header */}
-      <div className="mb-6">
-        <h1
-          className="text-xl font-bold flex items-center gap-2"
-          style={{ color: 'var(--color-t1)' }}
-        >
-          <FileSpreadsheet size={22} style={{ color: 'var(--color-accent-bright)' }} />
-          智能导入
-        </h1>
-        <p
-          className="text-sm mt-1"
-          style={{ color: 'var(--color-t3)' }}
-        >
-          AI 自动识别数据格式，智能匹配 CRM 字段，一键导入客户数据
-        </p>
-      </div>
+      <SectionHeader
+        icon={<FileSpreadsheet size={18} className="text-[var(--color-accent)]" />}
+        title="智能导入"
+      />
+      <p className="text-sm mb-5" style={{ color: 'var(--color-t3)' }}>
+        AI 自动识别数据格式，智能匹配 CRM 字段，一键导入客户数据
+      </p>
 
       {/* Progress steps */}
-      <div
-        className="card p-4 mb-6"
-      >
+      <Card padding="md" className="mb-6">
         <div className="flex items-center justify-between max-w-xl mx-auto">
-          {[
-            { key: 'idle', label: '上传数据', icon: Upload },
-            { key: 'parsing', label: 'AI 解析', icon: Sparkles },
-            { key: 'preview', label: '确认映射', icon: CheckCircle2 },
-            { key: 'done', label: '导入完成', icon: CheckCircle2 },
-          ].map((step, i, arr) => {
-            const stageOrder: ImportStage[] = ['idle', 'parsing', 'preview', 'importing', 'done'];
-            const currentIdx = stageOrder.indexOf(stage);
+          {steps.map((step, i, arr) => {
             const stepIdx = step.key === 'done' ? 4 : stageOrder.indexOf(step.key as ImportStage);
             const isCompleted = currentIdx > stepIdx;
             const isActive = currentIdx === stepIdx || (stage === 'importing' && step.key === 'preview');
@@ -161,7 +155,7 @@ export default function Import() {
                       color: isActive
                         ? '#fff'
                         : isCompleted
-                          ? 'var(--color-accent-bright)'
+                          ? 'var(--color-accent)'
                           : 'var(--color-t4)',
                       boxShadow: isActive
                         ? '0 0 0 3px var(--color-accent-muted)'
@@ -179,7 +173,7 @@ export default function Import() {
                     className="text-[11px] mt-1.5 font-medium"
                     style={{
                       color: isReached
-                        ? 'var(--color-accent-bright)'
+                        ? 'var(--color-accent)'
                         : 'var(--color-t4)',
                     }}
                   >
@@ -200,20 +194,20 @@ export default function Import() {
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Stage: idle - paste/drop area */}
       {stage === 'idle' && (
-        <div className="card p-6 anim-fade-up">
+        <Card padding="lg" className="anim-fade-up">
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
-            className="rounded-xl p-8 text-center transition-all"
+            className="rounded-xl p-8 text-center transition-all cursor-pointer"
             style={{
-              border: `2px dashed ${dragOver ? 'var(--color-accent-bright)' : 'var(--color-b1)'}`,
+              border: `2px dashed ${dragOver ? 'var(--color-accent)' : 'var(--color-b1)'}`,
               background: dragOver ? 'var(--color-accent-muted)' : 'transparent',
-              boxShadow: dragOver ? '0 0 30px rgba(94,106,210,0.15)' : 'none',
+              boxShadow: dragOver ? '0 0 30px rgba(79,140,255,0.15)' : 'none',
             }}
           >
             <Upload
@@ -225,10 +219,7 @@ export default function Import() {
               拖拽文件到此处，或
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="underline ml-1 transition-colors"
-                style={{ color: 'var(--color-accent-bright)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-accent-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-accent-bright)')}
+                className="underline ml-1 transition-colors text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
               >
                 选择文件
               </button>
@@ -255,52 +246,32 @@ export default function Import() {
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
             placeholder={PLACEHOLDER}
-            className="w-full h-48 rounded-xl p-4 text-sm resize-none mono focus:outline-none transition-all"
-            style={{
-              background: 'var(--color-surface-1)',
-              border: '1px solid var(--color-b1)',
-              color: 'var(--color-t2)',
-            }}
-            onFocus={e => {
-              e.currentTarget.style.borderColor = 'var(--color-accent)';
-              e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-muted)';
-            }}
-            onBlur={e => {
-              e.currentTarget.style.borderColor = 'var(--color-b1)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+            className="w-full h-48 rounded-xl p-4 text-sm resize-none mono focus:outline-none transition-all
+                       bg-[var(--color-surface-1)] border border-[var(--color-b1)] text-[var(--color-t2)]
+                       focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
           />
 
           <div className="flex items-center justify-between mt-5">
             <p className="text-xs flex items-center gap-1.5" style={{ color: 'var(--color-t4)' }}>
-              <Sparkles size={13} style={{ color: 'var(--color-accent-bright)' }} />
+              <Sparkles size={13} className="text-[var(--color-accent)]" />
               AI 将自动识别列名、分隔符、编码，并映射到 CRM 字段
             </p>
-            <button
-              onClick={startParsing}
+            <Button
+              variant="primary"
+              size="lg"
               disabled={!pasteText.trim()}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: 'var(--color-accent)',
-                color: '#fff',
-              }}
-              onMouseEnter={e => {
-                if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-accent-hover)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'var(--color-accent)';
-              }}
+              onClick={startParsing}
             >
               <Sparkles size={15} />
               开始解析
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Stage: parsing - AI animation */}
       {stage === 'parsing' && (
-        <div className="card p-12 text-center anim-fade-up">
+        <Card padding="lg" className="p-12 text-center anim-fade-up">
           <div className="relative inline-flex items-center justify-center w-20 h-20 mb-5">
             <div
               className="absolute inset-0 rounded-full animate-ping opacity-20"
@@ -310,7 +281,7 @@ export default function Import() {
               className="absolute inset-2 rounded-full animate-pulse"
               style={{ border: '4px solid var(--color-accent)' }}
             />
-            <Sparkles size={32} className="animate-pulse" style={{ color: 'var(--color-accent-bright)' }} />
+            <Sparkles size={32} className="animate-pulse" style={{ color: 'var(--color-accent)' }} />
           </div>
           <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--color-t1)' }}>
             AI 正在解析数据...
@@ -339,7 +310,7 @@ export default function Import() {
                 >
                   <div
                     className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ background: 'var(--color-accent-bright)' }}
+                    style={{ background: 'var(--color-accent)' }}
                   />
                 </div>
                 <span className="text-sm" style={{ color: 'var(--color-t2)' }}>
@@ -348,19 +319,19 @@ export default function Import() {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Stage: preview - field mapping & summary */}
       {(stage === 'preview' || stage === 'importing') && (
         <div className="space-y-5 anim-fade-up">
           {/* Field mapping table */}
-          <div className="card overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             <div
               className="px-5 py-4 flex items-center gap-2"
               style={{ borderBottom: '1px solid var(--color-b0)' }}
             >
-              <Sparkles size={16} style={{ color: 'var(--color-accent-bright)' }} />
+              <Sparkles size={16} style={{ color: 'var(--color-accent)' }} />
               <h2 className="text-sm font-bold" style={{ color: 'var(--color-t1)' }}>
                 AI 字段映射结果
               </h2>
@@ -411,36 +382,33 @@ export default function Import() {
                       {f.original}
                     </td>
                     <td className="py-3 px-5 text-center">
-                      <ArrowRight size={14} style={{ color: 'var(--color-accent)', margin: '0 auto' }} />
+                      <ArrowRight size={14} className="mx-auto" style={{ color: 'var(--color-accent)' }} />
                     </td>
                     <td className="py-3 px-5">
-                      <span className="badge badge-accent">
+                      <Badge variant="accent">
                         {CRM_FIELD_LABELS[f.mapped] || f.mapped}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="py-3 px-5 text-xs mono" style={{ color: 'var(--color-t3)' }}>
                       {f.sample}
                     </td>
                     <td className="py-3 px-5 text-center">
-                      <span className={confidenceBadge(f.confidence)}>
+                      <Badge variant={confidenceBadgeVariant(f.confidence)}>
                         {f.confidence}%
-                      </span>
+                      </Badge>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
 
           {/* Import summary */}
-          <div className="card p-5">
-            <h2
-              className="text-sm font-bold mb-4 flex items-center gap-2"
-              style={{ color: 'var(--color-t1)' }}
-            >
-              <FileSpreadsheet size={16} style={{ color: 'var(--color-accent-bright)' }} />
-              导入摘要
-            </h2>
+          <Card padding="lg">
+            <SectionHeader
+              icon={<FileSpreadsheet size={16} className="text-[var(--color-accent)]" />}
+              title="导入摘要"
+            />
             <div className="grid grid-cols-3 gap-4 mb-5">
               <div
                 className="rounded-lg p-4 text-center"
@@ -494,7 +462,7 @@ export default function Import() {
                       className="text-xs flex items-start gap-2"
                       style={{ color: 'rgba(236,126,0,0.85)' }}
                     >
-                      <span className="mt-0.5" style={{ color: 'var(--color-warn)' }}>•</span>
+                      <span className="mt-0.5 shrink-0" style={{ color: 'var(--color-warn)' }}>•</span>
                       {w}
                     </li>
                   ))}
@@ -512,12 +480,9 @@ export default function Import() {
               </h3>
               <div className="flex flex-wrap gap-2">
                 {CUSTOMERS.slice(0, 4).map(c => (
-                  <span
-                    key={c.id}
-                    className="badge badge-neutral"
-                  >
+                  <Badge key={c.id} variant="default">
                     {c.name}
-                  </span>
+                  </Badge>
                 ))}
                 {CUSTOMERS.length > 4 && (
                   <span className="text-xs px-2 py-1" style={{ color: 'var(--color-t4)' }}>
@@ -526,11 +491,11 @@ export default function Import() {
                 )}
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Import progress bar */}
           {stage === 'importing' && (
-            <div className="card p-5 anim-fade-in">
+            <Card padding="lg" className="anim-fade-in">
               <div className="flex items-center justify-between mb-3">
                 <span
                   className="text-sm font-medium flex items-center gap-2"
@@ -539,11 +504,11 @@ export default function Import() {
                   <Sparkles
                     size={15}
                     className="animate-pulse"
-                    style={{ color: 'var(--color-accent-bright)' }}
+                    style={{ color: 'var(--color-accent)' }}
                   />
                   正在导入...
                 </span>
-                <span className="text-sm font-bold mono" style={{ color: 'var(--color-accent-bright)' }}>
+                <span className="text-sm font-bold mono" style={{ color: 'var(--color-accent)' }}>
                   {Math.min(progress, 100)}%
                 </span>
               </div>
@@ -555,51 +520,26 @@ export default function Import() {
                   className="h-full rounded-full transition-all duration-200 ease-out"
                   style={{
                     width: `${Math.min(progress, 100)}%`,
-                    background: 'linear-gradient(90deg, var(--color-accent), var(--color-accent-bright))',
+                    background: 'linear-gradient(90deg, var(--color-accent), var(--color-accent))',
                   }}
                 />
               </div>
               <p className="text-xs mt-2" style={{ color: 'var(--color-t4)' }}>
                 正在写入 {Math.min(Math.round((progress / 100) * summary.totalRows), summary.totalRows)} / {summary.totalRows} 条记录...
               </p>
-            </div>
+            </Card>
           )}
 
           {/* Action buttons */}
           {stage === 'preview' && (
             <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={reset}
-                className="px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
-                style={{
-                  color: 'var(--color-t3)',
-                  background: 'var(--color-surface-1)',
-                  border: '1px solid var(--color-b1)',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'var(--color-surface-2)';
-                  e.currentTarget.style.borderColor = 'var(--color-b2)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'var(--color-surface-1)';
-                  e.currentTarget.style.borderColor = 'var(--color-b1)';
-                }}
-              >
+              <Button variant="secondary" onClick={reset}>
                 取消
-              </button>
-              <button
-                onClick={startImport}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
-                style={{
-                  background: 'var(--color-accent)',
-                  color: '#fff',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-accent)')}
-              >
+              </Button>
+              <Button variant="primary" onClick={startImport}>
                 <CheckCircle2 size={15} />
                 确认导入 {summary.newCustomers} 个新客户
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -607,7 +547,7 @@ export default function Import() {
 
       {/* Stage: done - success */}
       {stage === 'done' && (
-        <div className="card p-12 text-center anim-fade-up">
+        <Card padding="lg" className="p-12 text-center anim-fade-up">
           <div
             className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5"
             style={{ background: 'rgba(16,185,129,0.12)' }}
@@ -645,39 +585,15 @@ export default function Import() {
             </div>
           </div>
           <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={reset}
-              className="px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
-              style={{
-                color: 'var(--color-t3)',
-                background: 'var(--color-surface-1)',
-                border: '1px solid var(--color-b1)',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'var(--color-surface-2)';
-                e.currentTarget.style.borderColor = 'var(--color-b2)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'var(--color-surface-1)';
-                e.currentTarget.style.borderColor = 'var(--color-b1)';
-              }}
-            >
+            <Button variant="secondary" onClick={reset}>
               继续导入
-            </button>
-            <button
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
-              style={{
-                background: 'var(--color-accent)',
-                color: '#fff',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-accent)')}
-            >
+            </Button>
+            <Button variant="primary">
               查看客户列表
               <ArrowRight size={15} />
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
