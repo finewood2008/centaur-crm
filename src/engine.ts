@@ -1,5 +1,6 @@
 import type { CRMState, CRMAction } from './store';
 import type { Customer, Task, CustomerEvent } from './types';
+import { embedCustomer, embedTaskList, embedActionResult } from './components/EmbeddedContent';
 
 /* ── AI 操作结果 ──────────────────────────────── */
 
@@ -194,6 +195,12 @@ export function processAICommand(
   }
 
   const result = executeAction(intent, state, dispatch);
+  // Embed action result card
+  if (result.action) {
+    const actionType = result.action.type;
+    const msg = result.message;
+    return msg + '\n' + embedActionResult(result.success, msg, actionType);
+  }
   return result.message;
 }
 
@@ -204,17 +211,25 @@ function genFallbackResponse(input: string, state: CRMState): string {
 
   // 统计类
   if (lower.includes('多少客户') || lower.includes('几个客户')) {
-    return `当前共有 ${state.customers.length} 个客户，其中正常 ${state.customers.filter(c => c.status === 'active').length} 个、关注 ${state.customers.filter(c => c.status === 'attention').length} 个、风险 ${state.customers.filter(c => c.status === 'risk').length} 个。`;
+    const active = state.customers.filter(c => c.status === 'active').length;
+    const attention = state.customers.filter(c => c.status === 'attention').length;
+    const risk = state.customers.filter(c => c.status === 'risk').length;
+    return `当前共有 ${state.customers.length} 个客户。其中正常 ${active} 个、关注 ${attention} 个、风险 ${risk} 个。`;
   }
   if (lower.includes('待办') || lower.includes('任务')) {
     const pending = state.tasks.filter(t => t.status !== 'completed');
-    return `有 ${pending.length} 个待办任务，其中 ${pending.filter(t => t.status === 'overdue').length} 个已逾期。`;
+    const overdue = state.tasks.filter(t => t.status === 'overdue');
+    const text = `有 ${pending.length} 个待办任务，其中 ${overdue.length} 个已逾期。`;
+    if (pending.length > 0 && pending.length <= 10) {
+      return text + '\n' + embedTaskList(pending.slice(0, 8), '待办列表');
+    }
+    return text;
   }
 
   // 客户分析
   const cust = state.customers.find(c => c.name.toLowerCase().includes(lower.replace(/[，。？]/g, '').trim()));
   if (cust) {
-    return `**${cust.name}**\n- 行业：${cust.industry}\n- 联系人：${cust.contact} ${cust.phone}\n- 健康分：${cust.healthScore}\n- 状态：${cust.status === 'active' ? '正常' : cust.status === 'attention' ? '关注' : '风险'}\n- 服务：${cust.services.join('、')}\n- 最近联系：${cust.lastContact}\n\n需要我做些什么？`;
+    return `这是 ${cust.name} 的客户档案：\n` + embedCustomer(cust) + `\n需要我做些什么？`;
   }
 
   return `收到！我可以帮您做这些事：

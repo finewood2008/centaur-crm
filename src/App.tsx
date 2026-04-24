@@ -8,6 +8,8 @@ import Sidebar from './components/Sidebar';
 import CentaurLogo from './components/CentaurLogo';
 import Briefing from './pages/Briefing';
 import { Send, ArrowLeft, Copy, Check } from 'lucide-react';
+import { parseMessageContent } from './components/EmbeddedContent';
+import EmbeddedRenderer from './components/EmbeddedRenderer';
 
 /* ── 聊天类型 ──────────────────────────────────── */
 
@@ -70,7 +72,19 @@ function ChatView({ messages, typing, onSend, onBack, onCopy, copiedId }: {
                       : '1px solid var(--color-b0)',
                   }}
                 >
-                  {m.content}
+                  {m.role === 'user' ? (
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {parseMessageContent(m.content).map((seg, i) =>
+                        seg.kind === 'text' && seg.text ? (
+                          <div key={i} className="whitespace-pre-wrap text-[13px] leading-relaxed">{seg.text}</div>
+                        ) : seg.kind === 'component' && seg.component ? (
+                          <div key={i}><EmbeddedRenderer component={seg.component} /></div>
+                        ) : null
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 px-1">
                   <span className="text-[10px] text-[var(--color-t4)]">{m.ts}</span>
