@@ -1,14 +1,24 @@
-import {
-  Users, AlertTriangle, CalendarClock, Lightbulb, TrendingUp,
-  Radar, Sparkles, ShieldAlert, ArrowUpRight, ArrowDownRight, Activity, Zap,
-} from 'lucide-react';
-import { Card, Badge, SectionHeader } from '../components/ui';
-import { DASHBOARD_STATS, TASKS, OPPORTUNITIES, POLICIES, CUSTOMERS, CUSTOMER_EVENTS } from '../mock';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Copy, Check } from 'lucide-react';
+import { useCRMData } from '../context/CRMDataContext';
+import { processAICommand } from '../engine';
+import CentaurLogo from '../components/CentaurLogo';
 import type { NavItem } from '../types';
 
-interface Props {
-  onNavigate: (tab: NavItem) => void;
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  ts: string;
+  isAction?: boolean;
 }
+
+const QUICK_ACTIONS = [
+  '今天有什么要处理的',
+  '看看锐思科技',
+  '有哪些客户需要关注',
+  '创建待办：给绿源环保安排高新复审',
+];
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -18,266 +28,214 @@ function getGreeting(): string {
   return '晚上好';
 }
 
-function getSummary(): string {
-  const parts: string[] = [];
-  if (DASHBOARD_STATS.overdueTasks > 0) parts.push(`${DASHBOARD_STATS.overdueTasks}项逾期待办需要立即处理`);
-  if (DASHBOARD_STATS.newOpportunities > 0) parts.push(`AI发现${DASHBOARD_STATS.newOpportunities}个新商机`);
-  if (DASHBOARD_STATS.unreadPolicies > 0) parts.push(`${DASHBOARD_STATS.unreadPolicies}条未读政策`);
-  return parts.join('，') + '。';
-}
-
-function KPICard({ icon: Icon, label, value, trend, trendLabel, accent }: {
-  icon: typeof Users; label: string; value: string | number;
-  trend?: 'up' | 'down'; trendLabel?: string; accent: string;
-}) {
-  const TrendIcon = trend === 'up' ? ArrowUpRight : trend === 'down' ? ArrowDownRight : Activity;
-  const trendColor = trend === 'up' ? 'text-green-400' : trend === 'down' ? 'text-red-400' : 'text-[var(--color-t4)]';
-
-  return (
-    <Card>
-      <div className="flex items-center justify-between mb-3">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: accent, opacity: 0.9 }}
-        >
-          <Icon size={16} className="text-white" />
-        </div>
-        {trend && trendLabel && (
-          <div className={`flex items-center gap-1 ${trendColor}`}>
-            <TrendIcon size={13} />
-            <span className="text-[11px] font-medium">{trendLabel}</span>
-          </div>
-        )}
-      </div>
-      <p className="mono text-[28px] font-semibold tracking-tight leading-none text-[var(--color-t1)]">
-        {value}
-      </p>
-      <p className="text-[12px] mt-1.5 text-[var(--color-t3)]">{label}</p>
-    </Card>
-  );
+interface Props {
+  onNavigate: (tab: NavItem) => void;
 }
 
 export default function Dashboard({ onNavigate }: Props) {
-  const urgentTasks = TASKS.filter(t => t.status === 'overdue' || (t.status !== 'completed' && t.priority === 'high')).slice(0, 5);
-  const newOpps = OPPORTUNITIES.filter(o => o.status === 'new').slice(0, 3);
-  const unreadPolicies = POLICIES.filter(p => !p.isRead).slice(0, 2);
-  const riskCustomers = CUSTOMERS.filter(c => c.status === 'risk');
-  const recentEvents = CUSTOMER_EVENTS.filter(e => e.type === 'risk' || e.type === 'change').slice(0, 3);
+  const { state, dispatch } = useCRMData();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [typing, setTyping] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const dateStr = new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+  // 自动汇报
+  useEffect(() => {
+    const overdue = state.tasks.filter(t => t.status === 'overdue').length;
+    const pending = state.tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+    const newOpps = state.opportunities.filter(o => o.status === 'new').length;
+    const riskCusts = state.customers.filter(c => c.status === 'risk').length;
+    const unhandledAlerts = state.monitorAlerts.filter(a => !a.isHandled).length;
+
+    const content = `${getGreeting()}！我是 半人马，你的 AI 数字员工。\n\n**今日概况**\n• 服务客户：${state.customers.length} 家\n• 待办任务：${pending} 项${overdue > 0 ? `（其中 ${overdue} 项逾期）` : ''}\n• 新商机：${newOpps} 个\n• 风险客户：${riskCusts} 家\n• 未处理预警：${unhandledAlerts} 条\n\n你可以直接对我说：\n• "今天有什么要处理的" → 详细汇报\n• "看看锐思科技" → 查看客户\n• "创建待办" → 安排任务\n• "切换到客户管理" → 打开表格`;
+
+    setMessages([{
+      id: '0', role: 'assistant',
+      ts: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      content,
+    }]);
+  }, []);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, typing]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const send = (text: string) => {
+    if (!text.trim()) return;
+    const ts = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text.trim(), ts };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setTyping(true);
+
+    // 检查是否需要切换页面
+    const lower = text.toLowerCase();
+    if (lower.includes('切换到') || lower.includes('打开') || lower.includes('看看') && (lower.includes('客户列表') || lower.includes('日历') || lower.includes('商机') || lower.includes('驾驶舱'))) {
+      setTimeout(() => {
+        if (lower.includes('客户')) onNavigate('customers');
+        else if (lower.includes('日历')) onNavigate('calendar');
+        else if (lower.includes('商机')) onNavigate('opportunities');
+        else if (lower.includes('驾驶舱') || lower.includes('仪表')) onNavigate('cockpit');
+        else if (lower.includes('监控') || lower.includes('风险')) onNavigate('monitor');
+        else if (lower.includes('政策')) onNavigate('policies');
+        setTyping(false);
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(), role: 'assistant',
+          content: `好，正在切换到${lower.includes('客户') ? '客户管理' : lower.includes('日历') ? '服务日历' : lower.includes('商机') ? '商机引擎' : lower.includes('驾驶舱') ? '驾驶舱' : lower.includes('监控') ? '风险监控' : lower.includes('政策') ? '政策雷达' : ''}页面...`,
+          ts: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        }]);
+      }, 600);
+      return;
+    }
+
+    setTimeout(() => {
+      const reply = processAICommand(text, state, dispatch);
+      const replyMsg: Message = {
+        id: (Date.now() + 1).toString(), role: 'assistant',
+        content: reply,
+        ts: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        isAction: reply.includes('已为') || reply.includes('已将') || reply.includes('已标记'),
+      };
+      setMessages(prev => [...prev, replyMsg]);
+      setTyping(false);
+    }, 500 + Math.random() * 800);
+  };
+
+  const copy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   return (
-    <div className="p-6 max-w-[1280px] mx-auto anim-fade-in">
-      {/* Greeting */}
-      <div className="mb-8 anim-fade-up">
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-xl font-bold text-[var(--color-t1)]">{getGreeting()}，李会计</h1>
-          <Sparkles size={18} className="text-[var(--color-accent)] opacity-60" />
-        </div>
-        <p className="text-[13px] text-[var(--color-t3)]">{dateStr} · {getSummary()}</p>
-      </div>
-
-      {/* KPI Row */}
-      <div className="grid grid-cols-4 gap-4 mb-6 stagger">
-        <KPICard icon={Users} label="服务客户" value={DASHBOARD_STATS.totalCustomers} trend="up" trendLabel={`${DASHBOARD_STATS.activeCustomers}活跃`} accent="var(--color-accent)" />
-        <KPICard icon={CalendarClock} label="待办事项" value={DASHBOARD_STATS.pendingTasks} trend={DASHBOARD_STATS.overdueTasks > 0 ? 'down' : undefined} trendLabel={DASHBOARD_STATS.overdueTasks > 0 ? `${DASHBOARD_STATS.overdueTasks}逾期` : '按时'} accent={DASHBOARD_STATS.overdueTasks > 0 ? 'var(--color-bad)' : 'var(--color-ok)'} />
-        <KPICard icon={Lightbulb} label="新商机" value={DASHBOARD_STATS.newOpportunities} trend="up" trendLabel={`¥${(DASHBOARD_STATS.totalOpportunityValue / 10000).toFixed(1)}万`} accent="var(--color-amber)" />
-        <KPICard icon={TrendingUp} label="平均健康度" value={`${DASHBOARD_STATS.avgHealthScore}`} trend={DASHBOARD_STATS.avgHealthScore >= 70 ? 'up' : 'down'} trendLabel={DASHBOARD_STATS.avgHealthScore >= 70 ? '良好' : '需关注'} accent="var(--color-ok)" />
-      </div>
-
-      {/* 3-column content */}
-      <div className="grid grid-cols-3 gap-5 stagger">
-        {/* Left: Urgent tasks */}
-        <Card>
-          <SectionHeader
-            icon={<AlertTriangle size={15} className="text-red-400" />}
-            title="紧急待办"
-            action={{ label: '查看全部', onClick: () => onNavigate('calendar') }}
-          />
-          <div className="space-y-1">
-            {urgentTasks.map(t => {
-              const isOverdue = t.status === 'overdue';
-              return (
-                <div
-                  key={t.id}
-                  className={[
-                    'flex items-start gap-3 py-2.5 px-3 rounded-lg transition-colors',
-                    isOverdue ? 'bg-red-500/5 border-l-2 border-red-500' : 'border-l-2 border-transparent',
-                  ].join(' ')}
-                >
-                  <div
-                    className={[
-                      'w-1.5 h-1.5 rounded-full mt-1.5 shrink-0',
-                      isOverdue ? 'bg-red-400' : 'bg-amber-400',
-                    ].join(' ')}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium truncate text-[var(--color-t1)]">{t.title}</p>
-                    <p className="text-[11px] mt-0.5 text-[var(--color-t4)]">{t.customerName}</p>
-                  </div>
-                  {isOverdue ? (
-                    <Badge variant="bad">已逾期</Badge>
-                  ) : (
-                    <span className="mono text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-t3)]">
-                      {t.deadline.slice(5)}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+    <div className="h-full flex flex-col anim-fade-in" style={{ background: 'var(--color-base)' }}>
+      {/* 顶部品牌条 */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-b0)] shrink-0">
+        <div className="flex items-center gap-3">
+          <CentaurLogo size={28} />
+          <div>
+            <h1 className="text-[14px] font-semibold text-[var(--color-t1)]">半人马</h1>
+            <p className="text-[10px] text-[var(--color-t4)]">AI 数字员工</p>
           </div>
-        </Card>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[var(--color-t4)]">
+            {state.customers.length} 客户 · {state.tasks.filter(t => t.status !== 'completed').length} 待办
+          </span>
+        </div>
+      </div>
 
-        {/* Center: AI opportunities */}
-        <Card>
-          <SectionHeader
-            icon={<Zap size={15} className="text-[var(--color-accent)]" />}
-            title="AI 商机推荐"
-            action={{ label: '查看全部', onClick: () => onNavigate('opportunities') }}
-          />
-          <div className="space-y-3">
-            {newOpps.map(o => (
+      {/* 对话区域 */}
+      <div className="flex-1 overflow-y-auto px-6 py-4 max-w-[800px] mx-auto w-full space-y-4">
+        {messages.map(m => (
+          <div key={m.id} className="anim-fade-in">
+            <div className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
-                key={o.id}
-                className="p-3.5 rounded-lg transition-all cursor-pointer"
+                className={[
+                  'max-w-[75%] group rounded-2xl px-4 py-3 text-[14px] leading-relaxed whitespace-pre-wrap',
+                  m.role === 'user'
+                    ? 'rounded-br-md'
+                    : 'rounded-bl-md',
+                ].join(' ')}
                 style={{
-                  background: 'var(--color-accent-subtle)',
-                  border: '1px solid rgba(79,140,255,0.15)',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'rgba(79,140,255,0.3)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(79,140,255,0.1)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'rgba(79,140,255,0.15)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  background: m.role === 'user'
+                    ? 'var(--color-accent)'
+                    : m.isAction
+                      ? 'rgba(34,197,94,0.08)'
+                      : 'var(--color-surface-2)',
+                  color: m.role === 'user' ? 'white' : 'var(--color-t2)',
+                  border: m.role === 'user'
+                    ? 'none'
+                    : m.isAction
+                      ? '1px solid rgba(34,197,94,0.2)'
+                      : '1px solid var(--color-b0)',
                 }}
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[12px] font-medium text-[var(--color-t1)]">{o.customerName}</span>
-                  <span className="mono text-[12px] font-semibold text-[var(--color-accent)]">
-                    ¥{o.estimatedValue.toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-[12px] font-medium text-[var(--color-accent-hover)]">{o.service}</p>
-                <p className="text-[11px] mt-1 line-clamp-2 text-[var(--color-t4)]">{o.reason.slice(0, 60)}…</p>
-                <div className="flex items-center gap-2 mt-2.5">
-                  <div className="flex-1 h-1 rounded-full overflow-hidden bg-white/5">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${o.confidence}%`,
-                        background: 'linear-gradient(90deg, var(--color-accent), #6ba0ff)',
-                      }}
-                    />
-                  </div>
-                  <span className="mono text-[10px] text-[var(--color-t3)]">{o.confidence}%</span>
-                </div>
+                {m.content}
               </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Right: Policy + Churn */}
-        <div className="flex flex-col gap-5">
-          <Card>
-            <SectionHeader
-              icon={<Radar size={15} className="text-blue-400" />}
-              title="政策动态"
-              action={{ label: '查看全部', onClick: () => onNavigate('policies') }}
-            />
-            <div className="space-y-3">
-              {unreadPolicies.map(p => (
-                <div
-                  key={p.id}
-                  className="p-3 rounded-lg transition-colors bg-blue-500/5 border border-blue-500/10"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <div
-                      className={[
-                        'w-1.5 h-1.5 rounded-full shrink-0',
-                        p.impact === 'high' ? 'bg-red-400' : 'bg-amber-400',
-                      ].join(' ')}
-                    />
-                    <span className="text-[12px] font-medium line-clamp-1 text-[var(--color-t1)]">{p.title}</span>
-                  </div>
-                  <p className="text-[11px] line-clamp-2 mt-1 text-[var(--color-t4)]">{p.summary.slice(0, 60)}…</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-[var(--color-t4)]">{p.source}</span>
-                    <Badge variant="info">影响{p.affectedCount}个客户</Badge>
-                  </div>
-                </div>
-              ))}
             </div>
-          </Card>
+            <div className={`flex items-center gap-2 mt-0.5 px-1 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <span className="text-[10px] text-[var(--color-t4)]">{m.ts}</span>
+              {m.role === 'assistant' && (
+                <button
+                  onClick={() => copy(m.id, m.content)}
+                  className="opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[10px] text-[var(--color-t4)] hover:text-[var(--color-accent)]"
+                >
+                  {copiedId === m.id ? <><Check size={10} /> 已复制</> : <><Copy size={10} /> 复制</>}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        {typing && (
+          <div className="flex justify-start anim-fade-in">
+            <div
+              className="rounded-2xl px-4 py-3 flex items-center gap-1.5"
+              style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-b0)' }}
+            >
+              <div className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" style={{ animationDelay: '0.2s' }} />
+              <div className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" style={{ animationDelay: '0.4s' }} />
+            </div>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
 
-          <Card className="flex-1">
-            <SectionHeader
-              icon={<ShieldAlert size={15} className="text-red-400" />}
-              title="流失预警"
-            />
-            {riskCustomers.length > 0 ? (
-              <div className="space-y-1">
-                {riskCustomers.map(c => {
-                  const daysSince = Math.round((Date.now() - new Date(c.lastContact).getTime()) / 86400000);
-                  return (
-                    <div
-                      key={c.id}
-                      className="flex items-center gap-2 py-2 px-2.5 rounded-lg transition-colors hover:bg-red-500/5"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-red-400" />
-                      <span className="text-[12px] flex-1 text-[var(--color-t2)]">{c.name}</span>
-                      <span className="mono text-[10px] text-red-400">{daysSince}天</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-[12px] text-[var(--color-t4)] text-center py-4">暂无流失预警</p>
-            )}
-          </Card>
+      {/* 快捷操作 */}
+      <div className="px-6 py-2 border-t border-[var(--color-b0)] shrink-0">
+        <div className="max-w-[800px] mx-auto flex flex-wrap gap-2">
+          {QUICK_ACTIONS.map((q, i) => (
+            <button
+              key={i}
+              onClick={() => send(q)}
+              className="text-[12px] px-3 py-1.5 rounded-full transition-all hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 text-[var(--color-t4)] border border-[var(--color-b0)] bg-[var(--color-surface-1)]"
+            >
+              {q}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Recent signals */}
-      {recentEvents.length > 0 && (
-        <div className="mt-6 anim-fade-up">
-          <Card>
-            <SectionHeader icon={<Activity size={15} className="text-[var(--color-t3)]" />} title="最新信号" />
-            <div className="grid grid-cols-3 gap-3">
-              {recentEvents.map(ev => {
-                const isRisk = ev.type === 'risk';
-                return (
-                  <div
-                    key={ev.id}
-                    className={[
-                      'p-3 rounded-lg flex items-start gap-3',
-                      isRisk ? 'bg-red-500/5 border border-red-500/10' : 'bg-[var(--color-surface-1)] border border-[var(--color-b0)]',
-                    ].join(' ')}
-                  >
-                    <div
-                      className={[
-                        'w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5',
-                        isRisk ? 'bg-red-500/15' : 'bg-[var(--color-surface-3)]',
-                      ].join(' ')}
-                    >
-                      {isRisk
-                        ? <AlertTriangle size={12} className="text-red-400" />
-                        : <Activity size={12} className="text-[var(--color-t3)]" />
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-medium truncate text-[var(--color-t1)]">{ev.customerName} · {ev.title}</p>
-                      <p className="text-[11px] mt-0.5 line-clamp-1 text-[var(--color-t4)]">{ev.description}</p>
-                      <p className="mono text-[10px] mt-1 text-[var(--color-t4)]">{ev.timestamp}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+      {/* 输入框 */}
+      <div className="px-6 py-4 border-t border-[var(--color-b0)] shrink-0">
+        <div className="max-w-[800px] mx-auto">
+          <div
+            className="flex items-end gap-2 rounded-xl px-4 py-3"
+            style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-b1)' }}
+          >
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }}
+              placeholder="说句话，我来帮你处理..."
+              rows={1}
+              className="flex-1 bg-transparent text-[14px] resize-none outline-none text-[var(--color-t1)] placeholder:text-[var(--color-t4)]"
+              style={{ maxHeight: '100px' }}
+            />
+            <button
+              onClick={() => send(input)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+              style={{
+                background: input.trim() ? 'var(--color-accent)' : 'var(--color-surface-3)',
+                color: input.trim() ? 'white' : 'var(--color-t4)',
+              }}
+            >
+              <Send size={15} />
+            </button>
+          </div>
+          <p className="text-[10px] mt-1.5 px-1 text-[var(--color-t4)]">
+            Enter 发送 · Shift+Enter 换行 · 说"切换到客户管理"打开表格
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, CalendarDays, Lightbulb, Radar,
-  Upload, Shield, BarChart3, Command,
+  Upload, Shield, BarChart3,
 } from 'lucide-react';
 import type { NavItem } from '../types';
 import { useBrand } from '../context/BrandContext';
@@ -10,7 +10,6 @@ import CentaurLogo from './CentaurLogo';
 interface SidebarProps {
   tab: NavItem;
   onTabChange: (tab: NavItem) => void;
-  onAiToggle: () => void;
   stats: CRMContext['stats'];
   criticalCount: number;
 }
@@ -43,7 +42,7 @@ const SECTIONS: {
   },
 ];
 
-export default function Sidebar({ tab, onTabChange, onAiToggle, stats, criticalCount }: SidebarProps) {
+export default function Sidebar({ tab, onTabChange, stats, criticalCount }: SidebarProps) {
   const brand = useBrand();
 
   return (
@@ -114,21 +113,6 @@ export default function Sidebar({ tab, onTabChange, onAiToggle, stats, criticalC
           </div>
         ))}
       </nav>
-
-      {/* AI shortcut */}
-      <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--color-b0)' }}>
-        <button
-          onClick={onAiToggle}
-          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg transition-all text-left"
-          style={{ background: 'var(--color-surface-1)' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-surface-2)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-surface-1)'; }}
-        >
-          <Command size={13} className="text-[var(--color-t4)]" />
-          <span className="text-[11px] flex-1 text-[var(--color-t4)]">AI 助手</span>
-          <kbd className="text-[9px] px-1.5 py-0.5 rounded text-[var(--color-t4)] bg-[var(--color-surface-2)]">⌘K</kbd>
-        </button>
-      </div>
 
       {/* User */}
       <div className="px-3 py-3 border-t" style={{ borderColor: 'var(--color-b0)' }}>

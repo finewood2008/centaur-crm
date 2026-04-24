@@ -4,7 +4,7 @@ import { useCRM } from './hooks/useCRM';
 import { BrandProvider } from './context/BrandContext';
 import { CRMProvider } from './context/CRMDataContext';
 import Sidebar from './components/Sidebar';
-import AIFloat from './components/AIFloat';
+import AIStatusBar from './components/AIStatusBar';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Calendar from './pages/Calendar';
@@ -17,19 +17,25 @@ import Cockpit from './pages/Cockpit';
 
 function AppContent() {
   const crm = useCRM();
-  const { tab, setTab, selectedCustomerId, setSelectedCustomerId, aiOpen, setAiOpen, stats, criticalAlerts } = crm;
+  const { tab, setTab, selectedCustomerId, setSelectedCustomerId, stats, criticalAlerts } = crm;
 
-  // ⌘K shortcut
+  // ⌘K shortcut - 打开 AI 状态栏
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setAiOpen(prev => !prev);
+        // 触发底部 AI 状态栏的 focus (通过 DOM 事件)
+        const bar = document.querySelector('[data-ai-status-bar]');
+        if (bar) {
+          (bar as HTMLElement).click();
+        }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [setAiOpen]);
+  }, []);
+
+  const isChatPage = tab === 'dashboard';
 
   const renderPage = () => {
     if (tab === 'customers' && selectedCustomerId) {
@@ -60,16 +66,22 @@ function AppContent() {
       <Sidebar
         tab={tab}
         onTabChange={setTab}
-        onAiToggle={() => setAiOpen(v => !v)}
         stats={stats}
         criticalCount={criticalAlerts.length}
       />
-      <main className="flex-1 overflow-y-auto">
-        <div className="min-h-full anim-fade-in">
-          {renderPage()}
-        </div>
-      </main>
-      <AIFloat open={aiOpen} onClose={() => setAiOpen(false)} onOpen={() => setAiOpen(true)} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 overflow-y-auto">
+          <div className="min-h-full anim-fade-in">
+            {renderPage()}
+          </div>
+        </main>
+        {/* AI 状态栏：仅非对话页面显示 */}
+        {!isChatPage && (
+          <div data-ai-status-bar>
+            <AIStatusBar />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

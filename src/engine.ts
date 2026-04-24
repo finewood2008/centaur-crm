@@ -226,3 +226,74 @@ function genFallbackResponse(input: string, state: CRMState): string {
 
 你直接说需求就行。`;
 }
+
+/* ── 生成今日简报 ─────────────────────────────── */
+
+export function generateBriefing(state: CRMState): string {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+
+  const overdue = state.tasks.filter(t => t.status === 'overdue');
+  const pending = state.tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+  const newOpps = state.opportunities.filter(o => o.status === 'new');
+  const riskCusts = state.customers.filter(c => c.status === 'risk');
+  const attentionCusts = state.customers.filter(c => c.status === 'attention');
+  const unhandledAlerts = state.monitorAlerts.filter(a => !a.isHandled);
+  const criticalAlerts = unhandledAlerts.filter(a => a.severity === 'critical');
+  const unreadPolicies = state.policies.filter(p => !p.isRead);
+
+  const sections: string[] = [];
+
+  // 问候
+  const hour = now.getHours();
+  const greeting = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好';
+  sections.push(`${greeting}，李会计。${dateStr}，今天有${state.customers.length}个客户需要你关注。\n`);
+
+  // 紧急事项
+  const urgency: string[] = [];
+  if (overdue.length > 0) urgency.push(`⚠️ ${overdue.length}个逾期待办`);
+  if (criticalAlerts.length > 0) urgency.push(`🔴 ${criticalAlerts.length}条严重预警`);
+  if (riskCusts.length > 0) urgency.push(`🚨 ${riskCusts.length}个流失风险客户`);
+  if (urgency.length > 0) {
+    sections.push(`**需要立即处理：**`);
+    urgency.forEach(u => sections.push(u));
+    sections.push('');
+  }
+
+  // 今日建议
+  sections.push(`**建议你今天：**`);
+
+  // 优先处理逾期的
+  if (overdue.length > 0) {
+    const topTask = overdue[0];
+    sections.push(`1. 联系 ${topTask.customerName}，处理"${topTask.title}"（已逾期，负责人：${topTask.assignedTo}）`);
+  }
+
+  // 处理关注中的客户
+  if (attentionCusts.length > 0) {
+    const top = attentionCusts[0];
+    sections.push(`2. 跟进 ${top.name}（${top.contact}），上次联系 ${top.lastContact}，状态需要关注`);
+  }
+
+  // AI 发现的商机
+  if (newOpps.length > 0) {
+    const top = newOpps.sort((a, b) => b.confidence - a.confidence)[0];
+    sections.push(`3. AI 发现新商机：${top.customerName} — ${top.service}（置信度 ${top.confidence}%）`);
+  }
+
+  // 政策影响
+  if (unreadPolicies.length > 0) {
+    const top = unreadPolicies.sort((a, b) => b.affectedCount - a.affectedCount)[0];
+    sections.push(`4. 新政策「${top.title}」影响 ${top.affectedCount} 个客户，建议尽快通知`);
+  }
+
+  // 待办概览
+  if (pending.length > 0) {
+    sections.push(`5. 还有其他 ${pending.length} 个待办任务待处理`);
+  }
+
+  sections.push('');
+  sections.push('你可以说「帮我处理」让我来执行，或者告诉我关注哪个客户。');
+
+  return sections.join('\n');
+}
