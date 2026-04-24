@@ -1,10 +1,11 @@
 import {
-  LayoutDashboard, Users, CalendarDays, Lightbulb, Radar, Sparkles,
+  LayoutDashboard, Users, CalendarDays, Lightbulb, Radar,
   Upload, Shield, BarChart3, Command,
 } from 'lucide-react';
 import type { NavItem } from '../types';
 import { useBrand } from '../context/BrandContext';
 import type { CRMContext } from '../hooks/useCRM';
+import CentaurLogo from './CentaurLogo';
 
 interface SidebarProps {
   tab: NavItem;
@@ -53,12 +54,7 @@ export default function Sidebar({ tab, onTabChange, onAiToggle, stats, criticalC
       {/* Brand */}
       <div className="px-4 py-4 border-b" style={{ borderColor: 'var(--color-b0)' }}>
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: `linear-gradient(135deg, ${brand.accent}, #6ba0ff)` }}
-          >
-            <Sparkles size={14} className="text-white" />
-          </div>
+          <CentaurLogo size={28} />
           <div>
             <h1 className="text-[14px] font-semibold tracking-tight text-[var(--color-t1)]">
               {brand.name}

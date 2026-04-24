@@ -2,6 +2,7 @@ import { useEffect, type JSX } from 'react';
 import type { NavItem } from './types';
 import { useCRM } from './hooks/useCRM';
 import { BrandProvider } from './context/BrandContext';
+import { CRMProvider } from './context/CRMDataContext';
 import Sidebar from './components/Sidebar';
 import AIFloat from './components/AIFloat';
 import Dashboard from './pages/Dashboard';
@@ -68,7 +69,7 @@ function AppContent() {
           {renderPage()}
         </div>
       </main>
-      <AIFloat open={aiOpen} onClose={() => setAiOpen(false)} />
+      <AIFloat open={aiOpen} onClose={() => setAiOpen(false)} onOpen={() => setAiOpen(true)} />
     </div>
   );
 }
@@ -76,7 +77,9 @@ function AppContent() {
 export default function App() {
   return (
     <BrandProvider>
-      <AppContent />
+      <CRMProvider>
+        <AppContent />
+      </CRMProvider>
     </BrandProvider>
   );
 }
